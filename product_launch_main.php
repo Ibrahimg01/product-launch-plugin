@@ -70,7 +70,98 @@ if (!function_exists('pl_test_openai_connection')) {
     return array('ok'=>false, 'success'=>false, 'message'=>$msg, 'error'=>$msg, 'http_code'=>$code);
 }
 }
+// ============================================
+// SECURITY: AI Response Sanitization (v1.4.0)
+// ============================================
 
+/**
+ * Sanitize AI responses to prevent XSS attacks
+ * 
+ * This function strips all HTML tags from AI-generated content
+ * to prevent potential XSS if OpenAI API is compromised or returns malicious content
+ * 
+ * @param string $response Raw AI response
+ * @param bool $allow_basic_formatting Whether to allow basic markdown-style formatting
+ * @return string Sanitized response
+ */
+function pl_sanitize_ai_response($response, $allow_basic_formatting = true) {
+    if (empty($response) || !is_string($response)) {
+        return '';
+    }
+    
+    // Strip all HTML tags first
+    $sanitized = wp_strip_all_tags($response, true);
+    
+    // Optionally preserve basic markdown-style formatting for display
+    if ($allow_basic_formatting) {
+        // Convert markdown-style bold to safe HTML entity representation
+        $sanitized = preg_replace('/\*\*(.*?)\*\*/', '⟦b⟧$1⟦/b⟧', $sanitized);
+        // Convert markdown-style italic to safe representation
+        $sanitized = preg_replace('/\*(.*?)\*/', '⟦i⟧$1⟦/i⟧', $sanitized);
+    }
+    
+    // Remove any remaining control characters
+    $sanitized = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $sanitized);
+    
+    // Limit length to prevent memory issues
+    $max_length = 50000; // 50KB max
+    if (strlen($sanitized) > $max_length) {
+        $sanitized = substr($sanitized, 0, $max_length) . '... [truncated]';
+    }
+    
+    return trim($sanitized);
+}
+
+/**
+ * Format sanitized AI response for display in chat
+ * Converts safe markers back to HTML
+ * 
+ * @param string $sanitized_response Response from pl_sanitize_ai_response()
+ * @return string HTML-formatted response safe for display
+ */
+function pl_format_ai_response_for_display($sanitized_response) {
+    $formatted = $sanitized_response;
+    
+    // Convert safe markers to actual HTML
+    $formatted = str_replace('⟦b⟧', '<strong>', $formatted);
+    $formatted = str_replace('⟦/b⟧', '</strong>', $formatted);
+    $formatted = str_replace('⟦i⟧', '<em>', $formatted);
+    $formatted = str_replace('⟦/i⟧', '</em>', $formatted);
+    
+    // Convert line breaks to HTML
+    $formatted = nl2br($formatted);
+    
+    return $formatted;
+}
+
+/**
+ * Validate and sanitize user input for AI queries
+ * 
+ * @param string $input User input
+ * @param int $max_length Maximum allowed length
+ * @return string|WP_Error Sanitized input or error
+ */
+function pl_sanitize_user_input($input, $max_length = 5000) {
+    if (!is_string($input)) {
+        return new WP_Error('invalid_input', __('Input must be a string', 'product-launch'));
+    }
+    
+    // Remove any HTML/script tags
+    $sanitized = wp_strip_all_tags($input, true);
+    
+    // Check length
+    if (strlen($sanitized) > $max_length) {
+        return new WP_Error('input_too_long', sprintf(
+            __('Input exceeds maximum length of %d characters', 'product-launch'),
+            $max_length
+        ));
+    }
+    
+    // Remove excessive whitespace
+    $sanitized = preg_replace('/\s+/', ' ', $sanitized);
+    
+    return trim($sanitized);
+}
 
 
 /**
@@ -322,23 +413,22 @@ if (!current_user_can('manage_options')) wp_die(__('Insufficient permissions.','
 
 /**
  * Main chat handler with real OpenAI integration
- * FIXED: Nonce check first, rate limiting, input validation
+ * UPDATED: v1.4.0 - Added response sanitization
  */
 add_action('wp_ajax_product_launch_chat', 'pl_ajax_chat');
 function pl_ajax_chat() {
     PL_Ajax_Guard::guard('chat', 'nonce', 20, 60);
 
-    // FIX 1: Nonce check FIRST
+    // Security checks
     if (!wp_verify_nonce($_POST['nonce'] ?? '', PL_NONCE_ACTION)) {
         wp_send_json_error(__('Invalid nonce','product-launch'));
     }
     
-    // Then capability check
     if (!current_user_can('read')) {
         wp_send_json_error(__('Unauthorized','product-launch'));
     }
 
-    // FIX 4: Input size validation
+    // Input validation with size limits
     $history_json = wp_unslash($_POST['history'] ?? '[]');
     $context_json = wp_unslash($_POST['context'] ?? '{}');
     
@@ -350,12 +440,17 @@ function pl_ajax_chat() {
     }
 
     $phase = sanitize_text_field($_POST['phase'] ?? '');
-    $message = wp_kses_post($_POST['message'] ?? '');
+    $message_raw = wp_unslash($_POST['message'] ?? '');
+    
+    // ✅ NEW: Sanitize user input
+    $message = pl_sanitize_user_input($message_raw, 5000);
+    if (is_wp_error($message)) {
+        wp_send_json_error($message->get_error_message());
+    }
     
     $history = json_decode($history_json, true);
     $context = json_decode($context_json, true);
     
-    // FIX 4: Validate decoded data
     if (!is_array($history)) $history = [];
     if (!is_array($context)) $context = [];
     
@@ -364,7 +459,7 @@ function pl_ajax_chat() {
         $history = array_slice($history, -100);
     }
 
-    // FIX 1: Rate limiting (existing code, but moved after security checks)
+    // Rate limiting
     $user_id = get_current_user_id();
     $limit = intval(pl_get_settings()['rate_limit_per_min']);
     if ($limit > 0) {
@@ -383,10 +478,15 @@ function pl_ajax_chat() {
         set_transient($key, $bucket, 2 * MINUTE_IN_SECONDS);
     }
 
-    // Generate AI response using OpenAI
+    // Generate AI response
     $reply = pl_generate_ai_response_enhanced($phase, $message, $history, $context);
     
-    // Concatenate contextual greeting on first user turn
+    // ✅ NEW: Sanitize AI response before sending to frontend
+    if ($reply !== false) {
+        $reply = pl_sanitize_ai_response($reply, true);
+    }
+    
+    // Add contextual greeting on first turn
     if (empty($history)) {
         $user_id_g = get_current_user_id();
         $site_id_g = get_current_blog_id();
@@ -395,6 +495,7 @@ function pl_ajax_chat() {
             if (!empty($launch_context_g)) {
                 $greet_g = pl_get_contextual_greeting($phase, $launch_context_g);
                 if (!empty($greet_g)) {
+                    $greet_g = pl_sanitize_ai_response($greet_g, true);
                     $reply = $greet_g . "\n\n" . $reply;
                 }
             }
@@ -410,24 +511,23 @@ function pl_ajax_chat() {
 
     wp_send_json_success($reply);
 }
-
+/**
 /**
  * Enhanced field assistance with contextual AI
- * FIXED: Nonce first, rate limiting added, input validation
+ * UPDATED: v1.4.0 - Added input/output sanitization
  */
 add_action('wp_ajax_product_launch_field_assist', function() {
     PL_Ajax_Guard::guard('product_launch_field_assist', 'nonce', 20, 60);
-// FIX 1: Nonce check FIRST
+    
     if (!wp_verify_nonce($_POST['nonce'] ?? '', PL_NONCE_ACTION)) {
         wp_send_json_error('Invalid nonce', 400);
     }
     
-    // Then authentication check
     if (!is_user_logged_in()) {
         wp_send_json_error('Unauthorized', 401);
     }
 
-    // FIX 4: Input size validation
+    // Input size validation
     $context_json = wp_unslash($_POST['context'] ?? '{}');
     if (strlen($context_json) > 100000) {
         wp_send_json_error('Context data too large', 400);
@@ -438,11 +538,9 @@ add_action('wp_ajax_product_launch_field_assist', function() {
     $field_id = sanitize_text_field($_POST['field_id'] ?? '');
     
     $context = json_decode($context_json, true);
-    
-    // FIX 4: Validate decoded data
     if (!is_array($context)) $context = [];
 
-    // FIX 2: Rate limiting for field assistance (same as chat)
+    // Rate limiting
     $limit = intval(pl_get_settings()['rate_limit_per_min']);
     if ($limit > 0) {
         $key = 'pl_rate_' . $user_id;
@@ -462,13 +560,17 @@ add_action('wp_ajax_product_launch_field_assist', function() {
 
     $reply = pl_generate_field_assistance($phase, $field_id, $context);
     
+    // ✅ NEW: Sanitize field assistance response
+    if ($reply !== false) {
+        $reply = pl_sanitize_ai_response($reply, false); // No formatting for fields
+    }
+    
     if ($reply === false) {
         wp_send_json_error('Failed to get AI assistance', 500);
     }
 
     wp_send_json_success($reply);
 });
-
 /**
  * Field assistance with chat context
  * FIXED: Nonce first, rate limiting, input validation
