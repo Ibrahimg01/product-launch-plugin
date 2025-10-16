@@ -1,0 +1,4 @@
+ULTIMATE WORKING – Enhanced AI Build v2.0.0
+Replaced main PHP and JS with enhanced versions.
+
+[2025-10-12] Replaced assets/js/pl-selective-override.js with DOM Read Fix (v2.3.53) per user spec.

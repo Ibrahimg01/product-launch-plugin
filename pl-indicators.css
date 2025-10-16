@@ -1,0 +1,9 @@
+/* pl-indicators.css — 2025-09-28 18:22:17 UTC */
+.ai-fillable.field-empty { border-left: 4px solid #ef4444 !important; }
+.ai-fillable.field-thin  { border-left: 4px solid #f59e0b !important; }
+.ai-fillable.field-good  { border-left: 4px solid #10b981 !important; }
+.field-quality-indicator { font-weight: 600; font-size: 12px; margin-top: 5px; }
+/* Fallback accent so it's visible even if borders are overridden */
+input.ai-fillable.field-empty, textarea.ai-fillable.field-empty { box-shadow: inset 4px 0 0 0 #ef4444 !important; }
+input.ai-fillable.field-thin,  textarea.ai-fillable.field-thin  { box-shadow: inset 4px 0 0 0 #f59e0b !important; }
+input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: inset 4px 0 0 0 #10b981 !important; }
