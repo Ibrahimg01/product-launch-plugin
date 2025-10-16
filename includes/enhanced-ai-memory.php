@@ -55,17 +55,24 @@ if (!function_exists('pl_call_openai_api')) {
         $code = wp_remote_retrieve_response_code($resp);
         $raw  = wp_remote_retrieve_body($resp);
         if ($code < 200 || $code >= 300) {
-            // Optional: parse error message for logging
             return false;
         }
         $json = json_decode($raw, true);
         if (!is_array($json) || empty($json['choices'][0]['message']['content'])) {
             return false;
         }
-        return $json['choices'][0]['message']['content'];
+        
+        // ✅ NEW: Sanitize response before returning
+        $response = $json['choices'][0]['message']['content'];
+        
+        // Apply sanitization if the main plugin function exists
+        if (function_exists('pl_sanitize_ai_response')) {
+            $response = pl_sanitize_ai_response($response, true);
+        }
+        
+        return $response;
     }
 }
-
 
 
 // Compatibility shim: Provide phase-specific prompt if missing
