@@ -634,47 +634,62 @@ if (!function_exists('pl_generate_field_assistance')) {
         $field_id = sanitize_key($field_id ?: 'unknown');
         if (!is_array($context)) { $context = array(); }
 
-        // Build a minimal context summary to keep prompts small
+        // Build comprehensive context summary - use ALL fields, not just 6
         $summary_parts = array();
-        foreach (array('business_name','offer','audience','pain_points','value_proposition','positioning') as $k) {
-            if (!empty($context[$k]) && is_string($context[$k])) {
-                $summary_parts[] = ucfirst(str_replace('_',' ', $k)) . ': ' . wp_strip_all_tags($context[$k]);
+
+        foreach ($context as $k => $v) {
+            if (!empty($v) && is_string($v) && strlen(trim($v)) > 10) {
+                // Don't truncate - use full content for better context
+                $label = ucfirst(str_replace('_', ' ', $k));
+                $summary_parts[] = "**{$label}:** " . wp_strip_all_tags(trim($v));
             }
         }
-        $summary = implode("\n", array_slice($summary_parts, 0, 6));
 
-        $field_hint = $context['field_label'] ?? $field_id;
-        $instructions = "You are an assistant helping fill a single form field for a product launch workflow.\n".
-                        "Phase: {$phase}\nField: {$field_hint}\n".
-                        "Context (may be partial):\n{$summary}\n\n".
-                        "Write only the value for this one field. No headings, no explanations. Keep it concise and specific.\n".
-                        "Maximum length: 500 characters.";
+        $summary = '';
+        if (!empty($summary_parts)) {
+            $summary = "\n\n**EXISTING CONTEXT FROM OTHER FIELDS:**\n" . implode("\n\n", $summary_parts);
+        }
+
+        // Get field label for better prompting
+        $field_hint = $context['field_label'] ?? ucfirst(str_replace('_', ' ', $field_id));
+
+        // Build context-aware prompt
+        $instructions = "You are assisting with a product launch workflow in the '{$phase}' phase.\n\n" .
+                        "TASK: Generate high-quality, specific content for the field: **{$field_hint}**\n\n" .
+                        "REQUIREMENTS:\n" .
+                        "- Write 3-5 detailed sentences (minimum 100 words)\n" .
+                        "- Use the existing context below to maintain consistency\n" .
+                        "- Be specific and actionable, not generic\n" .
+                        "- Write in a professional but conversational tone\n" .
+                        "- Focus on what makes this unique and valuable\n\n" .
+                        "{$summary}\n\n" .
+                        "Generate ONLY the content for '{$field_hint}' - no explanations, no field labels, just the content:";
 
         $messages = array(
-            array('role'=>'system', 'content'=> $instructions),
-            array('role'=>'user',   'content'=> isset($context['user_prompt']) ? (string)$context['user_prompt'] : 'Generate the best value for this field based on the context.'),
+            array('role' => 'system', 'content' => $instructions),
+            array('role' => 'user', 'content' => "Generate detailed, specific content for: {$field_hint}")
         );
 
-        // Call the shared OpenAI helper
         if (!function_exists('pl_call_openai_api')) {
             return false;
         }
-        if (function_exists('pl_get_settings')) {
-            $settings = pl_get_settings();
-        } else {
-            $settings = array();
-        }
+
+        $settings = function_exists('pl_get_settings') ? pl_get_settings() : array();
 
         $reply = pl_call_openai_api($messages, $settings);
+
         if (!is_string($reply) || $reply === '') {
             return false;
         }
-        // Post-process: trim, strip quotes, enforce max length
+
+        // Clean up response
         $reply = trim($reply);
-        $reply = preg_replace('/^["\\\']|["\\\']$/', '', $reply);
-        if (strlen($reply) > 1000) {
-            $reply = substr($reply, 0, 1000);
-        }
+        $reply = preg_replace('/^["\']|["\']$/', '', $reply);
+
+        // Remove any field labels AI might have added
+        $reply = preg_replace('/^\*\*.*?\*\*:\s*/i', '', $reply);
+        $reply = preg_replace('/^' . preg_quote($field_hint, '/') . ':\s*/i', '', $reply);
+
         return $reply;
     }
 }
