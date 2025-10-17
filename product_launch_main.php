@@ -546,6 +546,11 @@ add_action('wp_ajax_product_launch_field_assist', function() {
     $context = json_decode($context_json, true);
     if (!is_array($context)) $context = [];
 
+    // Add field label to context for better AI prompting
+    if (isset($_POST['field_label'])) {
+        $context['field_label'] = sanitize_text_field($_POST['field_label']);
+    }
+
     // Rate limiting
     $limit = intval(pl_get_settings()['rate_limit_per_min']);
     if ($limit > 0) {

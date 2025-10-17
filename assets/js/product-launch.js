@@ -227,6 +227,7 @@ class EnhancedProductLaunchCoach {
                 phase: this.getCurrentPhase(),
                 field_id: fieldId,
                 context: JSON.stringify(context),
+                field_label: this.formContext.get(fieldId)?.label || fieldId,
                 nonce: productLaunch.nonce
             },
             timeout: 30000,
@@ -792,41 +793,49 @@ class EnhancedProductLaunchCoach {
     // NEW METHOD: Generate field-specific content from analysis
     generateFieldContentFromAnalysis(fieldIds, callback) {
         const context = this.gatherFormContext();
-        
-        // Build detailed field descriptions for better AI understanding
+
+        console.log('[PL Coach] Generating content for fields:', fieldIds);
+
+        // Build field descriptions with existing context
         const fieldDescriptions = fieldIds.map(fieldId => {
             const fieldInfo = this.formContext.get(fieldId);
             const label = fieldInfo ? fieldInfo.label : fieldId;
             const currentValue = fieldInfo ? fieldInfo.value : '';
-            return `- ${label}: ${currentValue ? 'Currently: "' + currentValue.substring(0, 100) + '..."' : 'Empty'}`;
+            return `- **${label}**: ${currentValue ? 'Currently has: "' + currentValue.substring(0, 100) + '..."' : 'EMPTY - needs content'}`;
         }).join('\n');
-        
-        const improveMessage = `Based on the analysis provided, I need you to generate COMPLETE, READY-TO-USE content for each field below. Do not provide suggestions - provide the actual content.
 
-ANALYSIS CONTEXT:
-${this.currentAnalysis.substring(0, 1000)}...
+        // Build existing context summary
+        const existingContext = Object.entries(context)
+            .filter(([key, val]) => val && val.length > 20)
+            .map(([key, val]) => `**${key.replace(/_/g, ' ')}:** ${val.substring(0, 200)}`)
+            .join('\n\n');
 
-FIELDS TO GENERATE CONTENT FOR:
+        // Generate actual field content, not suggestions
+        const improveMessage = `You are helping fill empty form fields for a product launch workflow.
+
+**EXISTING CONTEXT (use this for consistency):**
+${existingContext || 'No existing context yet'}
+
+**FIELDS TO FILL WITH ACTUAL CONTENT:**
 ${fieldDescriptions}
 
-IMPORTANT INSTRUCTIONS:
-1. Generate ACTUAL field content, not descriptions or suggestions
-2. Format EXACTLY like this for each field:
+**CRITICAL INSTRUCTIONS:**
+1. Generate ACTUAL ready-to-use content for each empty field
+2. Each field should have 3-5 detailed sentences (100+ words minimum)
+3. Use the existing context to maintain consistency
+4. Be specific and actionable, not generic
+5. Format EXACTLY like this:
 
-**Target Audience**: [Write the complete target audience description here - 3-5 sentences describing who they are, their demographics, problems, and where they spend time]
+**Field Name 1**
+[Write 3-5 complete sentences of actual content here...]
 
-**Pain Points**: [Write 3-5 specific pain points as a detailed paragraph or bullet list]
+**Field Name 2**
+[Write 3-5 complete sentences of actual content here...]
 
-**Value Proposition**: [Write the complete value proposition - 2-3 compelling sentences]
+DO NOT write suggestions or descriptions. Write the actual content that goes in each field.
 
-3. Each field should have substantial content (50+ words minimum)
-4. Use the field names EXACTLY as shown above with ** marks
-5. Content should be ready to copy-paste into form fields
+Generate content now:`;
 
-Now generate the improved content:`;
-        
-        console.log('[PL Coach] Generating field content with prompt:', improveMessage);
-        
         jQuery.ajax({
             url: productLaunch.ajax_url,
             type: 'POST',
@@ -834,46 +843,27 @@ Now generate the improved content:`;
                 action: 'product_launch_chat',
                 phase: this.getCurrentPhase(),
                 message: improveMessage,
-                history: JSON.stringify([]), // Clear history for focused response
+                history: JSON.stringify([]),
                 context: JSON.stringify(context),
                 nonce: productLaunch.nonce
             },
-            timeout: 60000, // Longer timeout for content generation
+            timeout: 60000,
             success: (response) => {
                 if (response.success) {
                     console.log('[PL Coach] AI Response received:', response.data);
-                    
-                    // Parse the structured response into field content
+
+                    // Parse the structured response
                     const parsedContent = this.parseFieldContentResponse(response.data, fieldIds);
                     console.log('[PL Coach] Parsed content:', parsedContent);
-                    
-                    // Check if we got actual content
-                    const hasRealContent = Object.keys(parsedContent).some(key => {
-                        const content = parsedContent[key];
-                        return content && content.length > 50 && !content.includes('Improved content for');
-                    });
-                    
-                    if (!hasRealContent) {
-                        console.warn('[PL Coach] No substantial content parsed, showing raw response');
-                        // Fallback: split by double newlines and try to extract paragraphs
-                        const paragraphs = response.data.split(/\n\n+/);
-                        let fieldIndex = 0;
-                        fieldIds.forEach(fieldId => {
-                            if (fieldIndex < paragraphs.length && paragraphs[fieldIndex].length > 30) {
-                                parsedContent[fieldId] = paragraphs[fieldIndex].trim();
-                                fieldIndex++;
-                            }
-                        });
-                    }
-                    
+
                     callback(parsedContent);
                 } else {
-                    this.showNotification('Failed to generate content preview', 'error');
+                    this.showNotification('Failed to generate content', 'error');
                     console.error('[PL Coach] Generation failed:', response);
                 }
             },
             error: (xhr, status, error) => {
-                this.showNotification('Error generating content preview', 'error');
+                this.showNotification('Error generating content', 'error');
                 console.error('[PL Coach] Ajax error:', status, error);
             }
         });
@@ -882,48 +872,45 @@ Now generate the improved content:`;
     // NEW METHOD: Parse AI response into field => content map
     parseFieldContentResponse(aiResponse, fieldIds) {
         const parsed = {};
-        
+
         console.log('[PL Coach] Parsing response for fields:', fieldIds);
-        
+
         this.formContext.forEach((fieldInfo, fieldId) => {
             if (!fieldIds.includes(fieldId)) return;
-            
+
             const fieldName = fieldInfo.label;
             console.log('[PL Coach] Looking for content for:', fieldName);
-            
-            // Try multiple patterns with increasing flexibility
+
+            // Try multiple patterns with field name
             const patterns = [
-                // Pattern 1: **Field Name**: content (most specific)
-                new RegExp(`\\*\\*${this.escapeRegex(fieldName)}\\*\\*:?\\s*([\\s\\S]{30,1500}?)(?=\\n\\n|\\*\\*|$)`, 'i'),
-                
-                // Pattern 2: Field Name: content (without asterisks)
-                new RegExp(`^${this.escapeRegex(fieldName)}:?\\s*([\\s\\S]{30,1000}?)(?=\\n\\n|^[A-Z]|$)`, 'im'),
-                
-                // Pattern 3: Numbered list with field name
-                new RegExp(`\\d+\\.\\s*\\*\\*${this.escapeRegex(fieldName)}\\*\\*:?\\s*([\\s\\S]{30,1000}?)(?=\\n\\d+\\.|\\n\\n|$)`, 'i'),
-                
-                // Pattern 4: Try with underscores replaced
-                new RegExp(`\\*\\*${this.escapeRegex(fieldName.replace(/_/g, ' '))}\\*\\*:?\\s*([\\s\\S]{30,1000}?)(?=\\n\\n|\\*\\*|$)`, 'i'),
-                
-                // Pattern 5: Very flexible - just look for the field name followed by content
-                new RegExp(`${this.escapeRegex(fieldName)}[:\\s]+([^\\n]{50,}(?:\\n(?!\\*\\*|\\d+\\.)[^\\n]+)*)`, 'i')
+                // Pattern 1: **Field Name**\ncontent
+                new RegExp(`\\*\\*${this.escapeRegex(fieldName)}\\*\\*[:\\s]*\\n([\\s\\S]{50,1500}?)(?=\\n\\*\\*|$)`, 'i'),
+
+                // Pattern 2: **Field Name**: content
+                new RegExp(`\\*\\*${this.escapeRegex(fieldName)}\\*\\*:?\\s*([^\\n]{50,}(?:\\n(?!\\*\\*)[^\\n]+)*)`, 'i'),
+
+                // Pattern 3: Field Name (no asterisks)
+                new RegExp(`^${this.escapeRegex(fieldName)}[:\\s]+([\\s\\S]{50,1000}?)(?=\\n\\n|\\*\\*|$)`, 'im'),
+
+                // Pattern 4: With underscores replaced
+                new RegExp(`\\*\\*${this.escapeRegex(fieldName.replace(/_/g, ' '))}\\*\\*[:\\s]*([\\s\\S]{50,1000}?)(?=\\n\\*\\*|$)`, 'i')
             ];
-            
+
             for (let i = 0; i < patterns.length; i++) {
                 try {
                     const match = aiResponse.match(patterns[i]);
                     if (match && match[1]) {
                         let content = match[1].trim();
-                        
-                        // Clean up the content
+
+                        // Clean up
                         content = content
-                            .replace(/^\*\*|\*\*$/g, '') // Remove surrounding asterisks
-                            .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+                            .replace(/^\\*\\*|\\*\\*$/g, '')
+                            .replace(/^["']|["']$/g, '')
                             .trim();
-                        
-                        if (content.length > 30) { // Ensure we have substantial content
+
+                        if (content.length > 50) {
                             parsed[fieldId] = content;
-                            console.log(`[PL Coach] ✓ Matched pattern ${i+1} for ${fieldName}:`, content.substring(0, 100) + '...');
+                            console.log(`[PL Coach] ✓ Found content for ${fieldName}:`, content.substring(0, 100) + '...');
                             break;
                         }
                     }
@@ -931,36 +918,34 @@ Now generate the improved content:`;
                     console.warn(`[PL Coach] Pattern ${i+1} failed for ${fieldName}:`, e);
                 }
             }
-            
-            // Enhanced fallback: try to extract by field order
+
+            // If still no match, try paragraph extraction
             if (!parsed[fieldId]) {
                 console.warn(`[PL Coach] No direct match for ${fieldName}, trying paragraph extraction`);
-                
-                // Split response into substantial paragraphs
+
                 const paragraphs = aiResponse
                     .split(/\n\n+/)
                     .map(p => p.trim())
-                    .filter(p => p.length > 50 && !p.startsWith('#')); // Filter out headers
-                
+                    .filter(p => p.length > 50 && !p.startsWith('#') && !p.match(/^\\*\\*.*?\\*\\*$/));
+
                 const fieldIndex = fieldIds.indexOf(fieldId);
                 if (fieldIndex >= 0 && fieldIndex < paragraphs.length) {
                     parsed[fieldId] = paragraphs[fieldIndex]
-                        .replace(/^\*\*.*?\*\*:?\s*/, '') // Remove any field label
+                        .replace(/^\\*\\*.*?\\*\\*:?\\s*/, '')
                         .trim();
                     console.log(`[PL Coach] ✓ Extracted paragraph ${fieldIndex} for ${fieldName}`);
                 }
             }
-            
-            // Final fallback with better message
+
+            // Final fallback - generate placeholder
             if (!parsed[fieldId]) {
-                parsed[fieldId] = `AI-generated content for ${fieldName} (content extraction pending - this will be generated when you click Replace)`;
+                parsed[fieldId] = `[Content for ${fieldName} - click AI Assist button to generate]`;
                 console.warn(`[PL Coach] ✗ Could not extract content for ${fieldName}`);
             }
         });
-        
+
         return parsed;
     }
-    
     // Helper method for regex escaping
     escapeRegex(str) {
         return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
