@@ -192,6 +192,7 @@ $phase_info = isset($phase_map[$current]) ? $phase_map[$current] : $phase_map['m
     
     .form-actions .button {
         width: 100%;
+        max-width: 300px;
         justify-content: center;
     }
 }
