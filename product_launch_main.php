@@ -113,30 +113,8 @@ function pl_sanitize_ai_response($response, $allow_basic_formatting = true) {
 }
 
 /**
- * Format sanitized AI response for display in chat
- * Converts safe markers back to HTML
- * 
- * @param string $sanitized_response Response from pl_sanitize_ai_response()
- * @return string HTML-formatted response safe for display
- */
-function pl_format_ai_response_for_display($sanitized_response) {
-    $formatted = $sanitized_response;
-    
-    // Convert safe markers to actual HTML
-    $formatted = str_replace('⟦b⟧', '<strong>', $formatted);
-    $formatted = str_replace('⟦/b⟧', '</strong>', $formatted);
-    $formatted = str_replace('⟦i⟧', '<em>', $formatted);
-    $formatted = str_replace('⟦/i⟧', '</em>', $formatted);
-    
-    // Convert line breaks to HTML
-    $formatted = nl2br($formatted);
-    
-    return $formatted;
-}
-
-/**
  * Validate and sanitize user input for AI queries
- * 
+ *
  * @param string $input User input
  * @param int $max_length Maximum allowed length
  * @return string|WP_Error Sanitized input or error
@@ -482,12 +460,10 @@ function pl_ajax_chat() {
     $reply = pl_generate_ai_response_enhanced($phase, $message, $history, $context);
 
     $reply_sanitized = '';
-    $reply_formatted = '';
 
-    // ✅ NEW: Sanitize AI response before sending to frontend, then format for display
+    // ✅ NEW: Sanitize AI response before sending to frontend
     if ($reply !== false) {
         $reply_sanitized = pl_sanitize_ai_response($reply, true);
-        $reply_formatted = pl_format_ai_response_for_display($reply_sanitized);
     }
     
     // Add contextual greeting on first turn
@@ -500,9 +476,7 @@ function pl_ajax_chat() {
                 $greet_g = pl_get_contextual_greeting($phase, $launch_context_g);
                 if (!empty($greet_g)) {
                     $greet_sanitized = pl_sanitize_ai_response($greet_g, true);
-                    $greet_formatted = pl_format_ai_response_for_display($greet_sanitized);
                     $reply_sanitized = $greet_sanitized . "\n\n" . $reply_sanitized;
-                    $reply_formatted = $greet_formatted . '<br><br>' . $reply_formatted;
                 }
             }
         }
@@ -515,7 +489,7 @@ function pl_ajax_chat() {
     // Persist conversation
     pl_save_conversation($user_id, $phase, $message, $reply_sanitized, $history, $context);
 
-    wp_send_json_success($reply_formatted);
+    wp_send_json_success($reply_sanitized);
 }
 /**
 /**

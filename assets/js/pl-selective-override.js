@@ -99,9 +99,18 @@
       var currentPreview = currentValue.length > 80 ? currentValue.substr(0, 80) + '...' : currentValue;
       var newPreview = newValue.length > 80 ? newValue.substr(0, 80) + '...' : newValue;
 
+      // Format AI markers before displaying
+      var formatMarkers = function(str) {
+        return str
+          .replace(/⟦b⟧/g, '<strong>')
+          .replace(/⟦\/b⟧/g, '</strong>')
+          .replace(/⟦i⟧/g, '<em>')
+          .replace(/⟦\/i⟧/g, '</em>');
+      };
+
       // Display logic - show "Empty" only if truly empty
-      var currentDisplay = currentValue ? currentPreview.replace(/</g,'&lt;') : '<em>Empty</em>';
-      var newDisplay = newValue ? newPreview.replace(/</g,'&lt;') : '<em>AI-generated</em>';
+      var currentDisplay = currentValue ? formatMarkers(currentPreview.replace(/</g,'&lt;')) : '<em>Empty</em>';
+      var newDisplay = newValue ? formatMarkers(newPreview.replace(/</g,'&lt;')) : '<em>AI-generated</em>';
 
       html += '' +
         '<div class="pl-item-wrapper">' +
