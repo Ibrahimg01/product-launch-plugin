@@ -38,6 +38,22 @@ class EnhancedProductLaunchCoach {
         this.scanFormFields();
         this.loadPreviousContext();
     }
+
+    /**
+     * Format AI response markers to HTML
+     * Converts ⟦b⟧ to <strong>, ⟦i⟧ to <em>, etc.
+     */
+    formatAIResponse(text) {
+        if (!text || typeof text !== 'string') return text;
+
+        return text
+            .replace(/⟦b⟧/g, '<strong>')
+            .replace(/⟦\/b⟧/g, '</strong>')
+            .replace(/⟦i⟧/g, '<em>')
+            .replace(/⟦\/i⟧/g, '</em>')
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>');
+    }
     
     bindEvents() {
         // AI Coaching session start
@@ -604,13 +620,19 @@ class EnhancedProductLaunchCoach {
     }
     
     formatMessage(message) {
+        // First, format AI response markers
+        message = this.formatAIResponse(message);
+
+        // Then apply additional formatting
         return message
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
             .replace(/`(.*?)`/g, '<code>$1</code>')
-            .replace(/\n\n/g, '</p><p>')
-            .replace(/\n/g, '<br>')
-            .replace(/^(.*)$/, '<p>$1</p>')
+            .replace(/^(.*)$/gm, function(match) {
+                // Don't wrap if already wrapped
+                if (match.startsWith('<') || match === '') return match;
+                return '<p>' + match + '</p>';
+            })
             .replace(/(<p><\/p>)/g, '')
             .replace(/(\d+\.)\s/g, '<br>$1 ');
     }
@@ -683,6 +705,7 @@ class EnhancedProductLaunchCoach {
         jQuery('#product-launch-modal').css('z-index', '99999');
         
         const formattedContent = this.formatAnalysisContent(analysisContent);
+        console.log('[PL Coach] Formatted content for modal:', formattedContent.substring(0, 200)); // DEBUG
         
         const modalHtml = `
             <div class="improvement-modal-overlay">
@@ -734,6 +757,9 @@ class EnhancedProductLaunchCoach {
     }
     
     formatAnalysisContent(content) {
+        // Format AI response markers first
+        content = this.formatAIResponse(content);
+
         let formatted = content
             .replace(/###\s+(.+?)(\n|$)/g, '<h3 class="analysis-h3">$1</h3>')
             .replace(/##\s+(.+?)(\n|$)/g, '<h4 class="analysis-h4">$1</h4>')
