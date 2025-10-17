@@ -761,21 +761,59 @@ class EnhancedProductLaunchCoach {
         content = this.formatAIResponse(content);
 
         let formatted = content
-            .replace(/###\s+(.+?)(\n|$)/g, '<h3 class="analysis-h3">$1</h3>')
-            .replace(/##\s+(.+?)(\n|$)/g, '<h4 class="analysis-h4">$1</h4>')
-            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            // Headers with better spacing
+            .replace(/###\s+(.+?)(\n|$)/g, '<h3 class="analysis-h3" style="margin-top: 24px; margin-bottom: 12px; font-size: 18px; color: #1f2937; font-weight: 700;">$1</h3>')
+            .replace(/##\s+(.+?)(\n|$)/g, '<h4 class="analysis-h4" style="margin-top: 20px; margin-bottom: 10px; font-size: 16px; color: #374151; font-weight: 600;">$1</h4>')
+
+            // Bold and italic text enhancements
+            .replace(/\*\*(.+?)\*\*/g, '<strong style="color: #1f2937; font-weight: 600;">$1</strong>')
             .replace(/\*(.+?)\*/g, '<em>$1</em>')
-            .replace(/^(\d+)\.\s+(.+?)$/gm, '<div class="analysis-list-item"><span class="list-number">$1.</span> $2</div>')
-            .replace(/^[-•]\s+(.+?)$/gm, '<div class="analysis-bullet"><span class="bullet">•</span> $1</div>')
-            .replace(/\n\n/g, '</p><p class="analysis-p">')
+
+            // Numbered lists with better spacing and structure
+            .replace(/(\d+)\.\s+([\s\S]*?)(?=(\n\d+\.\s)|$)/g, (match, number, text) => {
+                const trimmedText = text.trim();
+                if (!trimmedText) {
+                    return match;
+                }
+
+                const formatListText = (value) => value
+                    .replace(/\n{2,}/g, '<br><br>')
+                    .replace(/\n/g, '<br>');
+
+                const colonIndex = trimmedText.indexOf(':');
+                if (colonIndex !== -1) {
+                    const title = trimmedText.slice(0, colonIndex).trim();
+                    const description = trimmedText.slice(colonIndex + 1).trim();
+                    const colonSuffix = ':';
+                    const titleHtml = title ? `<strong>${formatListText(title)}${colonSuffix}</strong>` : '';
+                    const descriptionHtml = description ? `<div class="list-description">${formatListText(description)}</div>` : '';
+                    return `<div class="analysis-list-item"><span class="list-number">${number}</span><div class="list-body">${titleHtml}${descriptionHtml}</div></div>`;
+                }
+
+                return `<div class="analysis-list-item"><span class="list-number">${number}</span><div class="list-body">${formatListText(trimmedText)}</div></div>`;
+            })
+
+            // Bullet points with better spacing
+            .replace(/^[-•]\s+(.+?)$/gm, '<div class="analysis-bullet" style="margin: 12px 0; padding-left: 12px; line-height: 1.6;"><span class="bullet" style="color: #3b82f6; margin-right: 8px; font-weight: bold;">•</span><span style="color: #374151;">$1</span></div>')
+
+            // Paragraphs with proper spacing
+            .replace(/\n\n/g, '</p><p class="analysis-p" style="margin: 14px 0; line-height: 1.7; color: #4b5563;">')
             .replace(/\n/g, '<br>');
-        
+
+        // Wrap in paragraph if not already wrapped
         if (!formatted.match(/^<[h3|h4|div|p]/)) {
-            formatted = '<p class="analysis-p">' + formatted + '</p>';
+            formatted = '<p class="analysis-p" style="margin: 14px 0; line-height: 1.7; color: #4b5563;">' + formatted + '</p>';
         }
-        
-        formatted = formatted.replace(/<p class="analysis-p"><\/p>/g, '');
-        
+
+        // Remove empty paragraphs
+        formatted = formatted.replace(/<p class="analysis-p"[^>]*><\/p>/g, '');
+
+        // Add section separator styling for Suggestions block
+        formatted = formatted.replace(
+            /Suggestions for Improvement:/gi,
+            '<div style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e5e7eb;"></div><strong style="font-size: 18px; color: #dc2626; display: block; margin-bottom: 16px;">💡 Suggestions for Improvement:</strong>'
+        );
+
         return formatted;
     }
     
