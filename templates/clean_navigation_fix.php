@@ -117,24 +117,27 @@ $phase_info = isset($phase_map[$current]) ? $phase_map[$current] : $phase_map['m
 .form-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
     justify-content: center;
     align-items: center;
-    padding: 30px;
-    background: #f8fafc;
-    border-radius: 8px;
+    padding: 30px 20px;
+    background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+    border-radius: 12px;
     margin-top: 30px;
-    border-top: 2px solid #e5e7eb;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .form-actions .button {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 10px 20px;
+    gap: 8px;
+    padding: 12px 24px;
     font-size: 14px;
-    min-width: 150px;
-    justify-content: center;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .form-actions .button .dashicons {
@@ -144,44 +147,53 @@ $phase_info = isset($phase_map[$current]) ? $phase_map[$current] : $phase_map['m
 }
 
 .form-actions .button-primary {
-    background: #3b82f6;
-    border-color: #3b82f6;
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    border-color: #3b82f6 !important;
+    color: white !important;
 }
 
 .form-actions .button-primary:hover {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    border-color: #2563eb !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
 .form-actions .button-secondary {
-    background: white;
-    border-color: #d1d5db;
-    color: #374151;
+    background: white !important;
+    border: 1px solid #d1d5db !important;
+    color: #374151 !important;
 }
 
 .form-actions .button-secondary:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+    background: #f9fafb !important;
+    border-color: #9ca3af !important;
+    transform: translateY(-1px);
 }
 
 .clear-all-fields {
+    background: white !important;
     color: #dc2626 !important;
-    border-color: #dc2626 !important;
+    border: 1px solid #fecaca !important;
 }
 
 .clear-all-fields:hover {
     background: #fef2f2 !important;
-    border-color: #b91c1c !important;
+    border-color: #dc2626 !important;
+    transform: translateY(-1px);
 }
 
+/* Responsive */
 @media (max-width: 768px) {
     .form-actions {
         flex-direction: column;
+        gap: 10px;
     }
     
     .form-actions .button {
         width: 100%;
         max-width: 300px;
+        justify-content: center;
     }
 }
 </style>
