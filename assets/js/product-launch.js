@@ -760,6 +760,14 @@ class EnhancedProductLaunchCoach {
         // Format AI response markers first
         content = this.formatAIResponse(content);
 
+        // Encourage clearer separation before numbered items
+        content = content.replace(/(^|\n)(\d+)\.\s+/g, (match, prefix, number) => `${prefix}\n${number}. `);
+
+        const formatListText = (value) => value
+            .replace(/\n{2,}/g, '<br><br>')
+            .replace(/\n/g, '<br>')
+            .trim();
+
         let formatted = content
             // Headers with better spacing
             .replace(/###\s+(.+?)(\n|$)/g, '<h3 class="analysis-h3" style="margin-top: 24px; margin-bottom: 12px; font-size: 18px; color: #1f2937; font-weight: 700;">$1</h3>')
@@ -776,33 +784,45 @@ class EnhancedProductLaunchCoach {
                     return match;
                 }
 
-                const formatListText = (value) => value
-                    .replace(/\n{2,}/g, '<br><br>')
-                    .replace(/\n/g, '<br>');
+                let title = '';
+                let description = trimmedText;
 
-                const colonIndex = trimmedText.indexOf(':');
-                if (colonIndex !== -1) {
-                    const title = trimmedText.slice(0, colonIndex).trim();
-                    const description = trimmedText.slice(colonIndex + 1).trim();
-                    const colonSuffix = ':';
-                    const titleHtml = title ? `<strong>${formatListText(title)}${colonSuffix}</strong>` : '';
-                    const descriptionHtml = description ? `<div class="list-description">${formatListText(description)}</div>` : '';
-                    return `<div class="analysis-list-item"><span class="list-number">${number}</span><div class="list-body">${titleHtml}${descriptionHtml}</div></div>`;
+                const leadingSplit = trimmedText.match(/^([^:\-\n]{1,120}?)(?:\s*[:\-–—]\s+)([\s\S]*)$/);
+                if (leadingSplit && leadingSplit[2]) {
+                    title = leadingSplit[1].trim();
+                    description = leadingSplit[2].trim();
+                } else {
+                    const newlineIndex = trimmedText.indexOf('\n');
+                    if (newlineIndex > 0 && newlineIndex < 160) {
+                        title = trimmedText.slice(0, newlineIndex).trim();
+                        description = trimmedText.slice(newlineIndex + 1).trim();
+                    }
                 }
 
-                return `<div class="analysis-list-item"><span class="list-number">${number}</span><div class="list-body">${formatListText(trimmedText)}</div></div>`;
+                if (description) {
+                    description = description.replace(/^[-–—]\s*/, '');
+                }
+
+                const titleHtml = title
+                    ? `<div class="list-title">${formatListText(title).replace(/:?$/, '')}:</div>`
+                    : '';
+                const descriptionHtml = description
+                    ? `<div class="list-description">${formatListText(description)}</div>`
+                    : '';
+
+                return `<div class="analysis-list-item"><span class="list-number">${number}</span><div class="list-body">${titleHtml || ''}${descriptionHtml || ''}</div></div>`;
             })
 
             // Bullet points with better spacing
             .replace(/^[-•]\s+(.+?)$/gm, '<div class="analysis-bullet" style="margin: 12px 0; padding-left: 12px; line-height: 1.6;"><span class="bullet" style="color: #3b82f6; margin-right: 8px; font-weight: bold;">•</span><span style="color: #374151;">$1</span></div>')
 
             // Paragraphs with proper spacing
-            .replace(/\n\n/g, '</p><p class="analysis-p" style="margin: 14px 0; line-height: 1.7; color: #4b5563;">')
+            .replace(/\n\n/g, '</p><p class="analysis-p" style="margin: 18px 0; line-height: 1.8; color: #4b5563;">')
             .replace(/\n/g, '<br>');
 
         // Wrap in paragraph if not already wrapped
         if (!formatted.match(/^<[h3|h4|div|p]/)) {
-            formatted = '<p class="analysis-p" style="margin: 14px 0; line-height: 1.7; color: #4b5563;">' + formatted + '</p>';
+            formatted = '<p class="analysis-p" style="margin: 18px 0; line-height: 1.8; color: #4b5563;">' + formatted + '</p>';
         }
 
         // Remove empty paragraphs
@@ -814,42 +834,97 @@ class EnhancedProductLaunchCoach {
             '<div style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e5e7eb;"></div><strong style="font-size: 18px; color: #dc2626; display: block; margin-bottom: 16px;">💡 Suggestions for Improvement:</strong>'
         );
 
-        return formatted;
+        return formatted.trim();
     }
     
     // NEW METHOD: Generate actual content preview before showing modal
     requestImprovedContentFromAnalysis() {
-        if (!this.currentAnalysis) return;
-        
+        if (!this.currentAnalysis) {
+            this.showNotification('No analysis available. Please analyze first.', 'warning');
+            return;
+        }
+
         const emptyFields = this.getEmptyTargetFields();
         const filledFields = this.getFilledFields();
         const targetFields = emptyFields.length > 0 ? emptyFields : filledFields;
-        
+
         console.log('[PL Coach] requestImprovedContentFromAnalysis called');
         console.log('[PL Coach]   - Empty fields:', emptyFields);
         console.log('[PL Coach]   - Filled fields:', filledFields);
         console.log('[PL Coach]   - Target fields:', targetFields);
-        
+
         if (targetFields.length === 0) {
             this.showNotification('No fields found to fill!', 'warning');
             return;
         }
-        
-        // Show loading notification
-        this.showNotification('Generating improved content preview...', 'info', 10000);
-        
-        // Generate actual field content based on analysis
+
+        this.showNotification('Generating improved content for ' + targetFields.length + ' fields...', 'info', 10000);
+
         this.generateFieldContentFromAnalysis(targetFields, (generatedContent) => {
             console.log('[PL Coach] Content generation callback received');
             console.log('[PL Coach]   - Generated content:', generatedContent);
-            
-            // Now show the selective modal with actual content
+
+            const sanitizedContent = {};
+            const missingFields = [];
+
+            targetFields.forEach(fieldId => {
+                const content = (generatedContent[fieldId] || '').trim();
+                if (content && content.length > 50 && !/\[Content for/.test(content) && !/click AI Assist/i.test(content)) {
+                    sanitizedContent[fieldId] = content;
+                } else {
+                    missingFields.push(fieldId);
+                }
+            });
+
+            if (Object.keys(sanitizedContent).length === 0) {
+                console.error('[PL Coach] No valid content generated!');
+                this.showNotification('Failed to generate content. Please try again.', 'error');
+                return;
+            }
+
+            if (missingFields.length) {
+                console.warn('[PL Coach] Missing generated content for fields:', missingFields);
+            }
+
+            this.pendingGeneratedContent = sanitizedContent;
+            console.log('[PL Coach] ✓ Stored pendingGeneratedContent:', this.pendingGeneratedContent);
+
             if (emptyFields.length === 0 && filledFields.length > 0) {
+                const overrideFields = filledFields.filter(fieldId => sanitizedContent[fieldId]);
+                if (!overrideFields.length) {
+                    console.error('[PL Coach] No override fields have generated content.');
+                    this.showNotification('No generated content available for the selected fields.', 'error');
+                    return;
+                }
+
+                if (overrideFields.length < filledFields.length && missingFields.length) {
+                    const missingLabels = missingFields
+                        .map(fieldId => this.formContext.get(fieldId)?.label || fieldId)
+                        .slice(0, 3)
+                        .join(', ');
+                    this.showNotification(`No new content generated for: ${missingLabels}${missingFields.length > 3 ? '...' : ''}`, 'warning');
+                }
+
                 console.log('[PL Coach] All fields filled - showing override confirmation');
-                this.showOverrideConfirmation(filledFields, generatedContent);
+                this.showOverrideConfirmation(overrideFields, sanitizedContent);
             } else {
-                console.log('[PL Coach] Has empty fields - filling directly with generated content');
-                this.fillFieldsWithGeneratedContent(emptyFields, generatedContent);
+                const fillTargets = emptyFields.filter(fieldId => sanitizedContent[fieldId]);
+                if (!fillTargets.length) {
+                    console.error('[PL Coach] No generated content available for empty fields.');
+                    this.showNotification('No generated content available for empty fields. Please try again.', 'error');
+                    return;
+                }
+
+                if (missingFields.length) {
+                    const missingLabels = missingFields
+                        .map(fieldId => this.formContext.get(fieldId)?.label || fieldId)
+                        .slice(0, 3)
+                        .join(', ');
+                    this.showNotification(`No new content generated for: ${missingLabels}${missingFields.length > 3 ? '...' : ''}`, 'warning');
+                }
+
+                console.log('[PL Coach] Has empty fields - filling directly');
+                this.fillFieldsWithGeneratedContent(fillTargets, sanitizedContent);
             }
         });
     }
@@ -874,7 +949,13 @@ class EnhancedProductLaunchCoach {
             .map(([key, val]) => `**${key.replace(/_/g, ' ')}:** ${val.substring(0, 200)}`)
             .join('\n\n');
 
-        // Generate actual field content, not suggestions
+        const fieldLabels = fieldIds.map(fieldId => {
+            const fieldInfo = this.formContext.get(fieldId);
+            return fieldInfo ? fieldInfo.label : fieldId;
+        });
+
+        const promptTemplate = fieldLabels.map(label => `**${label}**\n[Write the complete, ready-to-paste content here. 3-5 sentences minimum. Be specific and detailed.]`).join('\n\n');
+
         const improveMessage = `You are helping fill empty form fields for a product launch workflow.
 
 **EXISTING CONTEXT (use this for consistency):**
@@ -884,21 +965,16 @@ ${existingContext || 'No existing context yet'}
 ${fieldDescriptions}
 
 **CRITICAL INSTRUCTIONS:**
-1. Generate ACTUAL ready-to-use content for each empty field
-2. Each field should have 3-5 detailed sentences (100+ words minimum)
-3. Use the existing context to maintain consistency
-4. Be specific and actionable, not generic
-5. Format EXACTLY like this:
+1. Generate ACTUAL ready-to-use content for each field listed
+2. Each field needs 3-5 detailed sentences (100+ words total per field)
+3. Use existing context to maintain consistency and specificity
+4. Be concrete and actionable, not generic summaries
+5. Format response EXACTLY like this:
 
-**Field Name 1**
-[Write 3-5 complete sentences of actual content here...]
+${promptTemplate}
 
-**Field Name 2**
-[Write 3-5 complete sentences of actual content here...]
-
-DO NOT write suggestions or descriptions. Write the actual content that goes in each field.
-
-Generate content now:`;
+CRITICAL: Write ACTUAL field content, NOT suggestions or descriptions.
+Generate the content now:`;
 
         jQuery.ajax({
             url: productLaunch.ajax_url,

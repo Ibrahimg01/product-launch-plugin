@@ -276,6 +276,20 @@
         alert('No fields detected to replace.');
         return;
       }
+
+      var coach = window.productLaunchCoach;
+
+      console.log('[PL Selective] showSelectiveOverrideConfirmation called');
+      console.log('[PL Selective]   - Fields to fill:', filledFields);
+      console.log('[PL Selective]   - pendingGeneratedContent:', coach && coach.pendingGeneratedContent);
+      console.log('[PL Selective]   - currentAnalysis exists:', !!(coach && coach.currentAnalysis));
+
+      if (!coach || !coach.pendingGeneratedContent || !Object.keys(coach.pendingGeneratedContent).length) {
+        console.error('[PL Selective] ✗ No pendingGeneratedContent available!');
+        alert('No generated content available. Please try "Generate Improved Content" again.');
+        return;
+      }
+
       var modalId = 'pl-selective-replace-modal';
       var prev = document.getElementById(modalId);
       if (prev && prev.parentNode) { prev.parentNode.removeChild(prev); }

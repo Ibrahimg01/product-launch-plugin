@@ -1156,15 +1156,15 @@ input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: in
     padding: 30px;
     overflow-y: auto;
     flex: 1;
-    line-height: 1.7;
+    line-height: 1.8;
     font-size: 15px;
 }
 
 /* Better paragraph spacing */
 .improvement-content p,
 .improvement-content .analysis-p {
-    margin: 14px 0;
-    line-height: 1.7;
+    margin: 18px 0;
+    line-height: 1.8;
     color: #4b5563;
 }
 
@@ -1192,17 +1192,21 @@ input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: in
 /* Numbered list items - enhanced spacing and styling */
 .improvement-content .analysis-list-item {
     margin: 24px 0 !important;
-    padding: 20px !important;
+    padding: 22px 24px !important;
     background: linear-gradient(to right, #f0f9ff, #ffffff);
     border-left: 4px solid #3b82f6;
     border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
     line-height: 1.8;
     display: flex;
-    gap: 16px;
+    gap: 18px;
     align-items: flex-start;
     width: 100%;
     transition: all 0.2s ease;
+}
+
+.improvement-content .analysis-list-item + .analysis-list-item {
+    margin-top: 0 !important;
 }
 
 .improvement-content .analysis-list-item:hover {
@@ -1230,23 +1234,22 @@ input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: in
     color: #4b5563;
     line-height: 1.8;
     padding-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
-
-.improvement-content .list-body strong:first-child {
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 10px;
+.improvement-content .list-title {
+    display: block;
+    font-weight: 600;
     color: #1f2937;
     font-size: 15px;
-    font-weight: 600;
+    padding-bottom: 4px;
 }
 
 .improvement-content .list-description {
     display: block;
-    margin-top: 6px;
-    padding-left: 4px;
+    margin-top: 4px;
+    padding-left: 2px;
     color: #4b5563;
 }
 
