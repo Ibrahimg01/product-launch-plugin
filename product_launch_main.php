@@ -480,10 +480,14 @@ function pl_ajax_chat() {
 
     // Generate AI response
     $reply = pl_generate_ai_response_enhanced($phase, $message, $history, $context);
-    
-    // ✅ NEW: Sanitize AI response before sending to frontend
+
+    $reply_sanitized = '';
+    $reply_formatted = '';
+
+    // ✅ NEW: Sanitize AI response before sending to frontend, then format for display
     if ($reply !== false) {
-        $reply = pl_sanitize_ai_response($reply, true);
+        $reply_sanitized = pl_sanitize_ai_response($reply, true);
+        $reply_formatted = pl_format_ai_response_for_display($reply_sanitized);
     }
     
     // Add contextual greeting on first turn
@@ -495,21 +499,23 @@ function pl_ajax_chat() {
             if (!empty($launch_context_g)) {
                 $greet_g = pl_get_contextual_greeting($phase, $launch_context_g);
                 if (!empty($greet_g)) {
-                    $greet_g = pl_sanitize_ai_response($greet_g, true);
-                    $reply = $greet_g . "\n\n" . $reply;
+                    $greet_sanitized = pl_sanitize_ai_response($greet_g, true);
+                    $greet_formatted = pl_format_ai_response_for_display($greet_sanitized);
+                    $reply_sanitized = $greet_sanitized . "\n\n" . $reply_sanitized;
+                    $reply_formatted = $greet_formatted . '<br><br>' . $reply_formatted;
                 }
             }
         }
     }
-    
+
     if ($reply === false) {
         wp_send_json_error(__('Failed to generate AI response. Please check your settings.','product-launch'));
     }
 
     // Persist conversation
-    pl_save_conversation($user_id, $phase, $message, $reply, $history, $context);
+    pl_save_conversation($user_id, $phase, $message, $reply_sanitized, $history, $context);
 
-    wp_send_json_success($reply);
+    wp_send_json_success($reply_formatted);
 }
 /**
 /**
