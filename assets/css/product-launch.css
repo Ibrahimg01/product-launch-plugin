@@ -1152,9 +1152,115 @@ input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: in
 .improvement-header h3 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 18px; }
 .improvement-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s ease; }
 .improvement-close:hover { background: rgba(255, 255, 255, 0.2); }
-.improvement-content { padding: 30px; overflow-y: auto; flex: 1; line-height: 1.6; }
-.improvement-content p { margin-bottom: 15px; }
-.improvement-content strong { color: #1f2937; }
+.improvement-content {
+    padding: 30px;
+    overflow-y: auto;
+    flex: 1;
+    line-height: 1.7;
+    font-size: 15px;
+}
+
+/* Better paragraph spacing */
+.improvement-content p,
+.improvement-content .analysis-p {
+    margin: 14px 0;
+    line-height: 1.7;
+    color: #4b5563;
+}
+
+/* Better heading spacing */
+.improvement-content h3,
+.improvement-content .analysis-h3 {
+    margin-top: 28px;
+    margin-bottom: 14px;
+    font-size: 19px;
+    color: #1f2937;
+    font-weight: 700;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.improvement-content h4,
+.improvement-content .analysis-h4 {
+    margin-top: 20px;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: #374151;
+    font-weight: 600;
+}
+
+/* List item spacing */
+.improvement-content .analysis-list-item {
+    margin: 16px 0;
+    padding-left: 16px;
+    line-height: 1.7;
+    display: flex;
+    gap: 8px;
+}
+
+.improvement-content .list-number {
+    font-weight: 700;
+    color: #3b82f6;
+    flex-shrink: 0;
+    min-width: 24px;
+}
+
+/* Bullet point spacing */
+.improvement-content .analysis-bullet {
+    margin: 14px 0;
+    padding-left: 16px;
+    line-height: 1.7;
+    display: flex;
+    gap: 8px;
+}
+
+.improvement-content .bullet {
+    color: #3b82f6;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+/* Strong text emphasis */
+.improvement-content strong {
+    color: #1f2937;
+    font-weight: 600;
+}
+
+/* Section separators */
+.improvement-content > div {
+    margin: 20px 0;
+}
+
+/* First paragraph no top margin */
+.improvement-content > p:first-child,
+.improvement-content > .analysis-p:first-child {
+    margin-top: 0;
+}
+
+/* Last paragraph no bottom margin */
+.improvement-content > p:last-child,
+.improvement-content > .analysis-p:last-child {
+    margin-bottom: 0;
+}
+
+/* Scrollbar styling */
+.improvement-content::-webkit-scrollbar {
+    width: 10px;
+}
+
+.improvement-content::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 5px;
+}
+
+.improvement-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 5px;
+}
+
+.improvement-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
 .improvement-actions { padding: 20px 30px; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; justify-content: flex-end; }
 .improvement-action-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
 .improvement-close-btn { background: #f3f4f6; border: 1px solid #d1d5db; color: #374151; }
