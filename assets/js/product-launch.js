@@ -778,6 +778,9 @@ class EnhancedProductLaunchCoach {
         // Format AI response markers first
         content = this.formatAIResponse(content);
 
+        // Fix headers that run into numbered lists by ensuring a newline between them
+        content = content.replace(/(###?\s+[^\n]+?)(\d+\.)/g, '$1\n$2');
+
         // Encourage clearer separation before numbered items
         content = content.replace(/(^|\n)(\d+)\.\s+/g, (match, prefix, number) => `${prefix}\n${number}. `);
 
