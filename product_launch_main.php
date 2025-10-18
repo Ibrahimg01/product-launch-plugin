@@ -186,6 +186,8 @@ require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-acces
 require_once PL_PLUGIN_DIR . 'includes/idea-validation/validation-functions.php';
 require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-admin.php';
 require_once PL_PLUGIN_DIR . 'includes/idea-validation/validation-ajax.php';
+// Load frontend validation handler
+require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-frontend.php';
 
 /**
  * Enhanced activation with proper database schema
