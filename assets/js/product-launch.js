@@ -1603,6 +1603,618 @@ Generate the content now:`;
     }
 }
 
+// Enhanced "Fill Missing Fields" handler with better field detection
+jQuery(document).on('click', '.fill-missing-fields, button:contains("Fill Missing Fields")', function(e) {
+    e.preventDefault();
+    console.log('[PL Coach] Fill Missing Fields clicked');
+
+    const $button = jQuery(this);
+    const $modal = $button.closest('.ai-modal, .coach-modal');
+
+    if ($modal.length === 0) {
+        console.error('[PL Coach] Modal not found');
+        return;
+    }
+
+    // Get the AI response content
+    const $chatMessages = $modal.find('.chat-messages');
+    const $lastAssistantMsg = $chatMessages.find('.message.assistant').last();
+
+    if ($lastAssistantMsg.length === 0) {
+        console.error('[PL Coach] No assistant message found');
+        alert('No AI response found. Please chat with the AI coach first.');
+        return;
+    }
+
+    const fullResponse = $lastAssistantMsg.find('.message-content').text();
+    console.log('[PL Coach] Full AI response length:', fullResponse.length);
+
+    // Get the current phase
+    const phase = $modal.data('phase') || $button.data('phase') || 'unknown';
+    console.log('[PL Coach] Current phase:', phase);
+
+    // Parse AI response to extract field suggestions
+    const fieldSuggestions = parseAIResponseForFields(fullResponse, phase);
+    console.log('[PL Coach] Parsed field suggestions:', fieldSuggestions);
+
+    if (Object.keys(fieldSuggestions).length === 0) {
+        console.warn('[PL Coach] No field suggestions found in response');
+        alert('No field suggestions found. Try asking the AI coach to help fill specific fields.');
+        return;
+    }
+
+    // Get current form values
+    const currentValues = getCurrentFormValues(phase);
+    console.log('[PL Coach] Current form values:', currentValues);
+
+    // Build modal with field comparisons
+    showFieldReplacementModal(fieldSuggestions, currentValues, phase);
+});
+
+/**
+ * Parse AI response to extract field-specific content
+ * Enhanced to handle various response formats
+ */
+function parseAIResponseForFields(responseText, phase) {
+    const fields = {};
+
+    if (!responseText) {
+        return fields;
+    }
+
+    const normalizedText = responseText
+        .replace(/\r\n/g, '\n')
+        .replace(/\u00A0/g, ' ')
+        .replace(/\]\s*(?=\[)/g, ']\n')
+        .trim();
+
+    const fieldPatterns = {
+        'create_offer': {
+            'main_offer': [
+                /(?:main offer|core offering|product offering)[:\s]+([^]*?)(?=\n\n|pricing|bonus|guarantee|$)/i,
+                /\[(?:main[_\s]?offer|core[_\s]?offering|product[_\s]?offering)\]\s*([^]*?)(?=\[|$)/i,
+                /(?:^|\n)main offer[:\s]*([^]*?)(?=\n\n|$)/im
+            ],
+            'pricing_strategy': [
+                /(?:pricing strategy|pricing|price point|investment)[:\s]+([^]*?)(?=\n\n|bonus|guarantee|$)/i,
+                /\[(?:pricing[_\s]?strategy|pricing|price[_\s]?point|investment)\]\s*([^]*?)(?=\[|$)/i
+            ],
+            'bonuses': [
+                /(?:bonuses?|bonus items?)[:\s]+([^]*?)(?=\n\n|guarantee|pricing|$)/i,
+                /\[(?:bonuses?|bonus[_\s]?items?)\]\s*([^]*?)(?=\[|$)/i
+            ],
+            'guarantee': [
+                /(?:guarantee|money.back|refund policy)[:\s]+([^]*?)(?=\n\n|$)/i,
+                /\[(?:guarantee|money[_\s]?back|refund[_\s]?policy)\]\s*([^]*?)(?=\[|$)/i
+            ]
+        },
+        'market_clarity': {
+            'target_audience': [
+                /(?:target audience|ideal customer|ideal client)[:\s]+([^]*?)(?=\n\n|pain points|value|$)/i,
+                /\[(?:target[_\s]?audience|ideal[_\s]?customer|ideal[_\s]?client)\]\s*([^]*?)(?=\[|$)/i
+            ],
+            'pain_points': [
+                /(?:pain points?|problems?|challenges?)[:\s]+([^]*?)(?=\n\n|value|market|$)/i,
+                /\[(?:pain[_\s]?points?|problems?|challenges?)\]\s*([^]*?)(?=\[|$)/i
+            ],
+            'value_proposition': [
+                /(?:value proposition|unique value|unique selling proposition|usp)[:\s]+([^]*?)(?=\n\n|market|competitor|$)/i,
+                /\[(?:value[_\s]?proposition|unique[_\s]?value|unique[_\s]?selling[_\s]?proposition|usp)\]\s*([^]*?)(?=\[|$)/i
+            ]
+        },
+        'email_sequences': {
+            'email_subject': [
+                /(?:subject lines?|email subject|headline)[:\s]+([^]*?)(?=\n\n|email body|preview|$)/i,
+                /\[(?:email[_\s]?subject|subject[_\s]?lines?)\]\s*([^]*?)(?=\[|$)/i
+            ],
+            'email_body': [
+                /(?:email body|email copy|email content|message)[:\s]+([^]*?)(?=\n\n|subject|preview|$)/i,
+                /\[(?:email[_\s]?body|email[_\s]?copy|email[_\s]?content|message)\]\s*([^]*?)(?=\[|$)/i
+            ]
+        }
+    };
+
+    const aliasMap = {
+        'main_offer': 'main_offer',
+        'core_offering': 'main_offer',
+        'product_offering': 'main_offer',
+        'offer': 'main_offer',
+        'pricing_strategy': 'pricing_strategy',
+        'pricing': 'pricing_strategy',
+        'price_point': 'pricing_strategy',
+        'investment': 'pricing_strategy',
+        'bonuses': 'bonuses',
+        'bonus_items': 'bonuses',
+        'bonus': 'bonuses',
+        'guarantee': 'guarantee',
+        'money_back': 'guarantee',
+        'refund_policy': 'guarantee',
+        'target_audience': 'target_audience',
+        'ideal_customer': 'target_audience',
+        'ideal_client': 'target_audience',
+        'pain_points': 'pain_points',
+        'pain_point': 'pain_points',
+        'customer_challenges': 'pain_points',
+        'challenges': 'pain_points',
+        'problems': 'pain_points',
+        'value_proposition': 'value_proposition',
+        'unique_value': 'value_proposition',
+        'unique_selling_proposition': 'value_proposition',
+        'usp': 'value_proposition',
+        'email_subject': 'email_subject',
+        'subject_line': 'email_subject',
+        'subject_lines': 'email_subject',
+        'headline': 'email_subject',
+        'email_body': 'email_body',
+        'email_copy': 'email_body',
+        'email_content': 'email_body',
+        'message_body': 'email_body',
+        'ad_headline': 'ad_headline',
+        'ad_body': 'ad_body',
+        'ad_copy': 'ad_body'
+    };
+
+    const phasePatterns = fieldPatterns[phase] || {};
+    const relevantFieldIds = new Set(Object.keys(phasePatterns));
+
+    const normalizeLabel = (label) => label
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+
+    const cleanContent = (content) => content
+        .replace(/\[\/[^\]]+\]/g, '')
+        .replace(/^[\s:\-–]+/, '')
+        .trim();
+
+    const resolveFieldId = (label) => {
+        const normalizedLabel = normalizeLabel(label);
+
+        if (aliasMap[normalizedLabel]) {
+            return aliasMap[normalizedLabel];
+        }
+
+        let singularLabel = null;
+        if (normalizedLabel.endsWith('es')) {
+            singularLabel = normalizedLabel.replace(/es$/, '');
+        } else if (normalizedLabel.endsWith('s') && !normalizedLabel.endsWith('us')) {
+            singularLabel = normalizedLabel.replace(/s$/, '');
+        }
+
+        if (singularLabel && aliasMap[singularLabel]) {
+            return aliasMap[singularLabel];
+        }
+
+        return null;
+    };
+
+    const assignField = (fieldId, rawContent, source) => {
+        if (!fieldId) {
+            return;
+        }
+
+        if (relevantFieldIds.size && !relevantFieldIds.has(fieldId)) {
+            return;
+        }
+
+        const content = cleanContent(rawContent);
+
+        if (content.length < 20) {
+            return;
+        }
+
+        if (!fields[fieldId] || content.length > fields[fieldId].length) {
+            fields[fieldId] = content;
+            console.log(`[PL Coach] ${source} matched: ${fieldId}, length: ${content.length}`);
+        }
+    };
+
+    // Pass 1: Parse structured [FIELD] blocks
+    const bracketRegex = /\[([^\]]+)\]\s*:?[\t ]*([\s\S]*?)(?=\n\s*\[[^\]]+\]\s*:|$)/gi;
+    let bracketMatch;
+    while ((bracketMatch = bracketRegex.exec(normalizedText)) !== null) {
+        const label = bracketMatch[1];
+        const fieldId = resolveFieldId(label);
+        if (fieldId) {
+            assignField(fieldId, bracketMatch[2], 'Structured');
+        } else {
+            console.log('[PL Coach] Structured label not mapped:', label);
+        }
+    }
+
+    // Pass 2: Parse "Field Name:" style sections line-by-line
+    const lines = normalizedText.split(/\n+/);
+    let currentLabel = null;
+    let buffer = [];
+
+    const flushBuffer = () => {
+        if (!currentLabel) {
+            return;
+        }
+        const fieldId = resolveFieldId(currentLabel);
+        if (fieldId && buffer.length) {
+            assignField(fieldId, buffer.join('\n'), 'Section');
+        } else if (!fieldId) {
+            console.log('[PL Coach] Section label not mapped:', currentLabel);
+        }
+        currentLabel = null;
+        buffer = [];
+    };
+
+    lines.forEach((line) => {
+        const labelMatch = line.match(/^\s*(?:\[)?([A-Za-z][A-Za-z0-9 _\-/]{2,})\]?\s*:\s*(.*)$/);
+        if (labelMatch) {
+            flushBuffer();
+            currentLabel = labelMatch[1];
+            const remainder = labelMatch[2];
+            if (remainder) {
+                buffer.push(remainder.trim());
+            }
+        } else if (currentLabel) {
+            buffer.push(line.trim());
+        }
+    });
+    flushBuffer();
+
+    // Pass 3: Use regex patterns for any remaining fields
+    for (const [fieldId, patterns] of Object.entries(phasePatterns)) {
+        if (fields[fieldId]) {
+            continue;
+        }
+
+        for (const pattern of patterns) {
+            const match = normalizedText.match(pattern);
+            if (match && match[1]) {
+                assignField(fieldId, match[1], 'Regex');
+                if (fields[fieldId]) {
+                    break;
+                }
+            }
+        }
+    }
+
+    // Pass 4: Fallback paragraph/keyword detection
+    const missingFields = Object.keys(phasePatterns).filter((fieldId) => !fields[fieldId]);
+
+    if (missingFields.length) {
+        console.log('[PL Coach] Using fallback paragraph matching for', missingFields);
+        const paragraphs = normalizedText.split(/\n{2,}|\r{2,}/);
+
+        const keywordMap = {
+            'main_offer': ['offer', 'program', 'course', 'service', 'product'],
+            'pricing_strategy': ['price', 'pricing', 'cost', '$', 'investment', 'payment'],
+            'bonuses': ['bonus', 'bonuses', 'extra', 'include'],
+            'guarantee': ['guarantee', 'refund', 'money back', 'risk-free'],
+            'target_audience': ['audience', 'customer', 'client', 'who', 'buyer'],
+            'pain_points': ['pain', 'problem', 'struggle', 'challenge', 'frustration'],
+            'value_proposition': ['value proposition', 'unique value', 'usp', 'differentiates'],
+            'email_subject': ['subject', 'headline'],
+            'email_body': ['email', 'message', 'copy']
+        };
+
+        missingFields.forEach((fieldId) => {
+            const keywords = keywordMap[fieldId] || [];
+            for (const paragraph of paragraphs) {
+                const lowerPara = paragraph.toLowerCase();
+                if (keywords.some((kw) => lowerPara.includes(kw)) && paragraph.trim().length > 40) {
+                    assignField(fieldId, paragraph, 'Fallback');
+                    if (fields[fieldId]) {
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    return fields;
+}
+
+/**
+ * Get current form field values
+ */
+function getCurrentFormValues(phase) {
+    const values = {};
+
+    // Find all relevant form fields
+    const $form = jQuery('form, .phase-form, [data-phase="' + phase + '"]').first();
+
+    if ($form.length === 0) {
+        console.warn('[PL Coach] Form not found, searching globally');
+        // Search for fields globally
+        jQuery('textarea, input[type="text"]').each(function() {
+            const $field = jQuery(this);
+            const fieldId = $field.attr('id') || $field.attr('name');
+            if (fieldId) {
+                values[fieldId] = $field.val() || '';
+            }
+        });
+    } else {
+        // Search within form
+        $form.find('textarea, input[type="text"]').each(function() {
+            const $field = jQuery(this);
+            const fieldId = $field.attr('id') || $field.attr('name');
+            if (fieldId) {
+                values[fieldId] = $field.val() || '';
+            }
+        });
+    }
+
+    console.log('[PL Coach] Found form fields:', Object.keys(values));
+    return values;
+}
+
+/**
+ * Show field replacement modal with suggestions
+ */
+function showFieldReplacementModal(suggestions, currentValues, phase) {
+    // Remove any existing modal
+    jQuery('.pl-field-replacement-modal').remove();
+
+    let modalHtml = `
+        <div class="pl-field-replacement-modal" style="
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        ">
+            <div class="modal-content" style="
+                background: white;
+                padding: 30px;
+                border-radius: 8px;
+                max-width: 800px;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">Choose Fields to Replace</h2>
+                    <button class="close-modal" style="
+                        background: none;
+                        border: none;
+                        font-size: 24px;
+                        cursor: pointer;
+                        color: #666;
+                    ">&times;</button>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <button class="select-all-modal-fields" style="margin-right: 10px;">Select All</button>
+                    <button class="deselect-all-modal-fields">Deselect All</button>
+                    <span style="float: right; color: #666;" class="selection-count">0 of ${Object.keys(suggestions).length} selected</span>
+                </div>
+                
+                <div class="field-list">
+    `;
+
+    let fieldCount = 0;
+
+    for (const [fieldId, suggestedContent] of Object.entries(suggestions)) {
+        const currentContent = currentValues[fieldId] || '';
+        const fieldLabel = getFieldLabel(fieldId);
+
+        fieldCount++;
+
+        modalHtml += `
+            <div class="field-comparison" style="
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 15px;
+                margin-bottom: 15px;
+            ">
+                <label style="display: flex; align-items: start; cursor: pointer;">
+                    <input type="checkbox" 
+                           class="field-checkbox" 
+                           value="${fieldId}" 
+                           data-suggested="${escapeHtml(suggestedContent)}"
+                           style="margin-right: 10px; margin-top: 4px;"
+                           checked>
+                    <div style="flex: 1;">
+                        <strong style="display: block; margin-bottom: 10px; font-size: 14px; color: #333;">
+                            ${fieldLabel}
+                        </strong>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <div style="font-size: 11px; color: #666; margin-bottom: 5px;">CURRENT:</div>
+                                <div style="
+                                    padding: 10px;
+                                    background: #f5f5f5;
+                                    border-radius: 4px;
+                                    font-size: 12px;
+                                    max-height: 150px;
+                                    overflow-y: auto;
+                                    color: ${currentContent ? '#333' : '#999'};
+                                ">
+                                    ${currentContent || '(empty)'}
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <div style="font-size: 11px; color: #666; margin-bottom: 5px;">NEW (AI SUGGESTED):</div>
+                                <div style="
+                                    padding: 10px;
+                                    background: #e8f5e9;
+                                    border-radius: 4px;
+                                    font-size: 12px;
+                                    max-height: 150px;
+                                    overflow-y: auto;
+                                    color: #2e7d32;
+                                ">
+                                    ${escapeHtml(suggestedContent)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        `;
+    }
+
+    modalHtml += `
+                </div>
+                
+                <div style="
+                    margin-top: 20px;
+                    padding-top: 20px;
+                    border-top: 1px solid #ddd;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                ">
+                    <div style="background: #fff3cd; padding: 10px; border-radius: 4px; font-size: 12px; flex: 1; margin-right: 15px;">
+                        ⚠️ Selected fields will be replaced with AI-generated content.
+                    </div>
+                    <div>
+                        <button class="cancel-replacement" style="margin-right: 10px;">Cancel</button>
+                        <button class="confirm-replacement" style="
+                            background: #d32f2f;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-weight: 600;
+                        ">Replace Selected</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    jQuery('body').append(modalHtml);
+
+    console.log('[PL Coach] Modal shown with', fieldCount, 'fields');
+
+    // Update selection count
+    updateSelectionCount();
+}
+
+/**
+ * Helper: Get human-readable field label
+ */
+function getFieldLabel(fieldId) {
+    const labels = {
+        'main_offer': 'Main Offer',
+        'pricing_strategy': 'Pricing Strategy',
+        'bonuses': 'Bonuses',
+        'guarantee': 'Guarantee',
+        'target_audience': 'Target Audience',
+        'pain_points': 'Pain Points',
+        'value_proposition': 'Value Proposition',
+        'email_subject': 'Email Subject',
+        'email_body': 'Email Body',
+        'ad_headline': 'Ad Headline',
+        'ad_body': 'Ad Body'
+    };
+
+    return labels[fieldId] || fieldId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+/**
+ * Helper: Escape HTML
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Helper: Update selection count
+ */
+function updateSelectionCount() {
+    const $modal = jQuery('.pl-field-replacement-modal');
+    const total = $modal.find('.field-checkbox').length;
+    const checked = $modal.find('.field-checkbox:checked').length;
+    $modal.find('.selection-count').text(`${checked} of ${total} selected`);
+}
+
+// Modal interaction handlers
+jQuery(document).on('click', '.close-modal, .cancel-replacement', function() {
+    jQuery('.pl-field-replacement-modal').remove();
+});
+
+jQuery(document).on('click', '.select-all-modal-fields', function() {
+    jQuery('.pl-field-replacement-modal .field-checkbox').prop('checked', true);
+    updateSelectionCount();
+});
+
+jQuery(document).on('click', '.deselect-all-modal-fields', function() {
+    jQuery('.pl-field-replacement-modal .field-checkbox').prop('checked', false);
+    updateSelectionCount();
+});
+
+jQuery(document).on('change', '.pl-field-replacement-modal .field-checkbox', function() {
+    updateSelectionCount();
+});
+
+jQuery(document).on('click', '.confirm-replacement', function() {
+    const $modal = jQuery('.pl-field-replacement-modal');
+    const $checkedBoxes = $modal.find('.field-checkbox:checked');
+
+    if ($checkedBoxes.length === 0) {
+        alert('Please select at least one field to replace.');
+        return;
+    }
+
+    let replacedCount = 0;
+
+    $checkedBoxes.each(function() {
+        const $checkbox = jQuery(this);
+        const fieldId = $checkbox.val();
+        const suggestedContent = $checkbox.data('suggested');
+
+        // Find and update the field
+        const $field = jQuery(`#${fieldId}, [name="${fieldId}"]`).first();
+
+        if ($field.length) {
+            $field.val(suggestedContent).trigger('change');
+
+            // Visual feedback
+            $field.css('background', '#e8f5e9');
+            setTimeout(() => {
+                $field.css('background', '');
+            }, 2000);
+
+            replacedCount++;
+            console.log(`[PL Coach] Replaced field: ${fieldId}`);
+        } else {
+            console.warn(`[PL Coach] Field not found: ${fieldId}`);
+        }
+    });
+
+    $modal.remove();
+
+    // Show success message
+    if (replacedCount > 0) {
+        const $notice = jQuery(`
+            <div style="
+                position: fixed;
+                top: 50px;
+                right: 20px;
+                background: #4caf50;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 4px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                z-index: 999999;
+            ">
+                ✓ Successfully updated ${replacedCount} field${replacedCount !== 1 ? 's' : ''}
+            </div>
+        `);
+
+        jQuery('body').append($notice);
+        setTimeout(() => $notice.fadeOut(() => $notice.remove()), 3000);
+    }
+});
+
 // Initialize
 jQuery(document).ready(function() {
     if (typeof productLaunch !== 'undefined') {
