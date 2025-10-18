@@ -3,7 +3,7 @@
 if ( ! function_exists('pl_get_asset_version') ) {
     function pl_get_asset_version( $rel ) {
         $abs = plugin_dir_path(__FILE__) . $rel;
-        return file_exists($abs) ? filemtime($abs) : '2.3.51';
+        return file_exists($abs) ? filemtime($abs) : '2.3.56';
     }
 }
 
@@ -146,7 +146,7 @@ function pl_sanitize_user_input($input, $max_length = 5000) {
  * Plugin Name: Product Launch Coach Enhanced
  * Plugin URI:  https://informationsystems.io/
  * Description: AI-powered 8-phase product launch coaching workflow with real OpenAI integration, sophisticated prompting, and contextual assistance.
- * Version: 2.3.55-settings-fix
+ * Version: 2.3.56
  * Author:      Information Systems
  * Requires at least: 5.8
  * Requires PHP: 7.4
@@ -168,7 +168,7 @@ if (function_exists('pl_migrate_to_enhanced_memory')) {
 
 
 
-define('PL_PLUGIN_VERSION', '2.3.54');
+define('PL_PLUGIN_VERSION', '2.3.56');
 define('PL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -883,6 +883,169 @@ if (!wp_verify_nonce($_POST['nonce'] ?? '', PL_NONCE_ACTION)) {
 });
 
 /**
+ * Enhanced Field Assistance Handler
+ * Generates truly field-specific content based on field ID and context
+ * Version: 2.3.56 - Fixed duplicate content issue
+ */
+if (!function_exists('pl_generate_field_assistance')) {
+function pl_generate_field_assistance($phase, $field_id, $context = array()) {
+    $settings = function_exists('pl_get_settings') ? pl_get_settings() : array();
+    $api_key = $settings['openai_key'] ?? '';
+
+    if (empty($api_key)) {
+        error_log('PL Field Assist: Missing API key');
+        return false;
+    }
+
+    $field_prompts = pl_get_enhanced_field_prompts($phase, $field_id, $context);
+
+    if (!isset($field_prompts[$field_id])) {
+        error_log("PL Field Assist: No prompt found for field '{$field_id}' in phase '{$phase}'");
+        $prompt = pl_get_generic_field_prompt($phase, $field_id, $context);
+    } else {
+        $prompt = $field_prompts[$field_id];
+    }
+
+    $messages = array(
+        array(
+            'role'    => 'system',
+            'content' => pl_get_field_system_prompt($phase, $field_id),
+        ),
+        array(
+            'role'    => 'user',
+            'content' => $prompt,
+        ),
+    );
+
+    if (!function_exists('pl_call_openai_api')) {
+        error_log('PL Field Assist: pl_call_openai_api() missing');
+        return false;
+    }
+
+    $result = pl_call_openai_api($messages, $settings);
+
+    if ($result === false) {
+        error_log("PL Field Assist: API call failed for field '{$field_id}'");
+    }
+
+    return $result;
+}
+}
+
+/**
+ * Enhanced field-specific system prompts
+ * Version: 2.3.56
+ */
+if (!function_exists('pl_get_field_system_prompt')) {
+function pl_get_field_system_prompt($phase, $field_id) {
+    $base_prompt = "You are an expert product launch strategist and copywriter. Your task is to generate high-quality, specific content for the '{$field_id}' field in the '{$phase}' phase.";
+
+    $field_instructions = array(
+        'target_audience'   => " Write a detailed, specific target audience description. Include demographics, psychographics, behaviors, and where they spend time online. Be concrete and specific - avoid generic descriptions.",
+        'pain_points'       => " List 3-5 specific, emotionally resonant pain points. Focus on the daily frustrations and struggles this audience experiences. Make each point distinct and actionable.",
+        'value_proposition' => " Create a compelling value proposition that clearly communicates the unique transformation you provide. Focus on outcomes and benefits, not features. Make it memorable and specific to this audience.",
+        'main_offer'        => " Describe the core product/service offering in detail. Include what customers receive, the format, duration, and the primary transformation/benefit. Be specific about deliverables.",
+        'pricing_strategy'  => " Develop a complete pricing strategy including price point, payment options, and value-based justification. Consider market positioning and perceived value.",
+        'bonuses'           => " Create 3-5 irresistible bonus items that complement the main offer. Each bonus should add significant perceived value while being relevant to the core transformation.",
+        'guarantee'         => " Write a strong, risk-reversing guarantee that builds confidence and removes buyer hesitation. Make it specific, clear, and easy to understand.",
+        'email_subject'     => " Write compelling email subject lines that grab attention and create curiosity. Vary the approach - some direct, some curiosity-driven.",
+        'email_body'        => " Write engaging email copy that maintains the reader's attention, builds desire, and includes a clear call-to-action. Match the tone to the audience.",
+        'ad_headline'       => " Create attention-grabbing ad headlines that stop the scroll and make people want to learn more. Focus on benefit or curiosity.",
+        'ad_body'           => " Write compelling ad copy that speaks to the target audience's pain points and desires. Include social proof elements and a clear call-to-action.",
+    );
+
+    $specific_instruction = $field_instructions[$field_id] ?? " Generate high-quality, relevant content for this field.";
+
+    return $base_prompt . $specific_instruction . " Output ONLY the requested content without preamble or explanation.";
+}
+}
+
+/**
+ * Enhanced field prompts with better context handling
+ * Version: 2.3.56
+ */
+if (!function_exists('pl_get_enhanced_field_prompts')) {
+function pl_get_enhanced_field_prompts($phase, $field_id, $context) {
+    $context_str = "";
+    if (is_array($context) && !empty($context)) {
+        $relevant_context = array();
+        foreach ($context as $key => $value) {
+            if ($key === $field_id || empty($value) || !is_string($value)) {
+                continue;
+            }
+            if (strlen(trim($value)) > 10) {
+                $relevant_context[$key] = substr($value, 0, 200);
+            }
+        }
+
+        if (!empty($relevant_context)) {
+            $context_str = "\n\nContext from other fields:\n";
+            foreach ($relevant_context as $k => $v) {
+                $context_str .= "- {$k}: {$v}\n";
+            }
+        }
+    }
+
+    $prompts = array();
+
+    if ($phase === 'market_clarity') {
+        $prompts['target_audience'] = "Write a detailed target audience description. Include:\n1. Demographics (age range, income level, career stage)\n2. Psychographics (values, interests, lifestyle)\n3. Behaviors (where they hang out online, how they consume content)\n4. Specific challenges they face\n\nBe specific and concrete." . $context_str;
+
+        $prompts['pain_points'] = "List 3-5 specific pain points and frustrations that your target audience experiences daily. For each:\n- Describe the emotional impact\n- Explain why current solutions fall short\n- Make it relatable and specific" . $context_str;
+
+        $prompts['value_proposition'] = "Create a compelling value proposition that:\n1. Identifies the target audience\n2. Names their main problem\n3. Describes your unique solution\n4. States the primary benefit\n\nMake it clear and memorable." . $context_str;
+    }
+
+    if ($phase === 'create_offer') {
+        $prompts['main_offer'] = "Describe your core offering in detail:\n1. What customers receive\n2. Format and structure\n3. Duration and access\n4. Primary transformation\n5. What makes it different" . $context_str;
+
+        $prompts['pricing_strategy'] = "Develop a pricing strategy:\n1. Recommended price with justification\n2. Payment options\n3. Value-based rationale\n4. Market positioning" . $context_str;
+
+        $prompts['bonuses'] = "Create 3-5 bonus items that:\n1. Complement main offer\n2. Solve related problems\n3. Add perceived value\n\nFor each: name, description, value, benefit" . $context_str;
+
+        $prompts['guarantee'] = "Write a risk-reversing guarantee:\n1. What's guaranteed\n2. Timeframe\n3. Process\n4. Builds confidence" . $context_str;
+    }
+
+    if ($phase === 'email_sequences') {
+        $prompts['email_subject'] = "Write 5 email subject lines:\n1. Grab attention\n2. Create curiosity/urgency\n3. Relevant to audience\n4. Vary approach\n5. Under 60 characters" . $context_str;
+
+        $prompts['email_body'] = "Write engaging email:\n1. Hook that resonates\n2. Address pain point\n3. Build interest\n4. Social proof\n5. Clear CTA\n6. Conversational tone\n\n300-500 words" . $context_str;
+    }
+
+    if ($phase === 'facebook_ads') {
+        $prompts['ad_headline'] = "Write 5 Facebook ad headlines:\n1. Stop the scroll\n2. Address pain/desire\n3. Create urgency\n4. Under 40 characters\n5. Vary approach" . $context_str;
+
+        $prompts['ad_body'] = "Write Facebook ad copy:\n1. Hook in first sentence\n2. Speak to pain/desire\n3. Introduce solution\n4. Social proof\n5. Clear CTA\n6. 125-150 words" . $context_str;
+    }
+
+    return $prompts;
+}
+}
+
+/**
+ * Generic fallback prompt generator
+ * Version: 2.3.56
+ */
+if (!function_exists('pl_get_generic_field_prompt')) {
+function pl_get_generic_field_prompt($phase, $field_id, $context) {
+    $context_str = "";
+    if (!empty($context)) {
+        $context_items = array();
+        foreach ($context as $k => $v) {
+            if (!empty($v) && is_string($v) && strlen(trim($v)) > 10) {
+                $context_items[] = "{$k}: " . substr($v, 0, 150);
+            }
+        }
+        if (!empty($context_items)) {
+            $context_str = "\n\nExisting context:\n" . implode("\n", $context_items);
+        }
+    }
+
+    return "Generate high-quality, specific content for the '{$field_id}' field in the '{$phase}' phase of a product launch. The content should be professional, actionable, and tailored to the field's purpose." . $context_str;
+}
+}
+
+/**
  * Generate field-specific assistance with chat context
  */
 if (!function_exists('pl_generate_field_assistance_with_context')) {
@@ -895,7 +1058,7 @@ function pl_generate_field_assistance_with_context($phase, $field_id, $context =
 
     $field_prompt = pl_get_contextual_field_prompt($phase, $field_id, $context, $chat_context);
     $messages = array(
-        array('role' => 'system', 'content' => (function_exists('pl_get_field_system_prompt') ? pl_get_field_system_prompt($phase) : 'You are a helpful assistant that writes high-quality, field-specific content.')),
+        array('role' => 'system', 'content' => (function_exists('pl_get_field_system_prompt') ? pl_get_field_system_prompt($phase, $field_id) : 'You are a helpful assistant that writes high-quality, field-specific content.')),
         array('role' => 'user', 'content' => $field_prompt)
     );
     if (function_exists('pl_call_openai_api')) {
@@ -991,7 +1154,7 @@ if (!function_exists('plc_enqueue_continuity_bridge')) {
 
 // ============================================
 // CRITICAL FIX: Settings Save Function
-// Version: 2.3.55 - Fixed missing $input parameter
+// Version: 2.3.56 - Fixed duplicate content issue
 // ============================================
 
 if (!function_exists('pl_sanitize_settings')) {
