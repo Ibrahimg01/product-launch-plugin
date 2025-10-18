@@ -1824,7 +1824,7 @@ function parseAIResponseForFields(responseText, phase) {
 
         const keywordMap = {
             'main_offer': ['offer', 'program', 'course', 'service', 'product'],
-            'pricing_strategy': ['price', 'pricing', 'cost', ', 'investment', 'payment'],
+            'pricing_strategy': ['price', 'pricing', 'cost', 'investment', 'payment'],
             'bonuses': ['bonus', 'bonuses', 'extra', 'include'],
             'guarantee': ['guarantee', 'refund', 'money back', 'risk-free'],
             'target_audience': ['audience', 'customer', 'client', 'who', 'buyer'],
