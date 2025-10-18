@@ -185,10 +185,12 @@ function pl_activate($network_wide) {
         foreach ($sites as $blog_id) {
             switch_to_blog($blog_id);
             pl_create_tables();
+            pl_create_validation_tables();
             restore_current_blog();
         }
     } else {
         pl_create_tables();
+        pl_create_validation_tables();
     }
 }
 register_activation_hook(__FILE__, 'pl_activate');
@@ -216,6 +218,67 @@ function pl_create_tables() {
     
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     dbDelta($sql);
+}
+
+/**
+ * Create validation tracking tables
+ */
+function pl_create_validation_tables() {
+    global $wpdb;
+    $charset_collate = $wpdb->get_charset_collate();
+
+    // Main validations table
+    $table_validations = $wpdb->prefix . 'pl_validations';
+    $sql_validations = "CREATE TABLE IF NOT EXISTS `$table_validations` (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id BIGINT UNSIGNED NOT NULL,
+        site_id BIGINT UNSIGNED NOT NULL DEFAULT 1,
+        business_idea TEXT NOT NULL,
+        external_api_id VARCHAR(255) NULL,
+        validation_score INT DEFAULT 0,
+        confidence_level VARCHAR(50) NULL,
+        validation_status VARCHAR(50) DEFAULT 'pending',
+        enrichment_status VARCHAR(50) DEFAULT 'pending',
+        core_data LONGTEXT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY user_site (user_id, site_id),
+        KEY external_id (external_api_id),
+        KEY status (validation_status),
+        KEY created (created_at)
+    ) $charset_collate;";
+
+    // Enrichment cache table
+    $table_enrichment = $wpdb->prefix . 'pl_validation_enrichment';
+    $sql_enrichment = "CREATE TABLE IF NOT EXISTS `$table_enrichment` (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        validation_id BIGINT UNSIGNED NOT NULL,
+        section_type VARCHAR(50) NOT NULL,
+        section_data LONGTEXT NULL,
+        fetched_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY validation_section (validation_id, section_type),
+        KEY fetched (fetched_at)
+    ) $charset_collate;";
+
+    // User validation quota tracking
+    $table_quota = $wpdb->prefix . 'pl_validation_quota';
+    $sql_quota = "CREATE TABLE IF NOT EXISTS `$table_quota` (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id BIGINT UNSIGNED NOT NULL,
+        site_id BIGINT UNSIGNED NOT NULL DEFAULT 1,
+        month_year VARCHAR(7) NOT NULL,
+        validations_used INT DEFAULT 0,
+        validations_limit INT DEFAULT 3,
+        PRIMARY KEY (id),
+        UNIQUE KEY user_month (user_id, site_id, month_year)
+    ) $charset_collate;";
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+    dbDelta($sql_validations);
+    dbDelta($sql_enrichment);
+    dbDelta($sql_quota);
 }
 
 /**
