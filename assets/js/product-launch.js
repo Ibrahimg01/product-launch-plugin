@@ -1603,6 +1603,469 @@ Generate the content now:`;
     }
 }
 
+// Enhanced "Fill Missing Fields" handler with better field detection
+jQuery(document).on('click', '.fill-missing-fields, button:contains("Fill Missing Fields")', function(e) {
+    e.preventDefault();
+    console.log('[PL Coach] Fill Missing Fields clicked');
+
+    const $button = jQuery(this);
+    const $modal = $button.closest('.ai-modal, .coach-modal');
+
+    if ($modal.length === 0) {
+        console.error('[PL Coach] Modal not found');
+        return;
+    }
+
+    // Get the AI response content
+    const $chatMessages = $modal.find('.chat-messages');
+    const $lastAssistantMsg = $chatMessages.find('.message.assistant').last();
+
+    if ($lastAssistantMsg.length === 0) {
+        console.error('[PL Coach] No assistant message found');
+        alert('No AI response found. Please chat with the AI coach first.');
+        return;
+    }
+
+    const fullResponse = $lastAssistantMsg.find('.message-content').text();
+    console.log('[PL Coach] Full AI response length:', fullResponse.length);
+
+    // Get the current phase
+    const phase = $modal.data('phase') || $button.data('phase') || 'unknown';
+    console.log('[PL Coach] Current phase:', phase);
+
+    // Parse AI response to extract field suggestions
+    const fieldSuggestions = parseAIResponseForFields(fullResponse, phase);
+    console.log('[PL Coach] Parsed field suggestions:', fieldSuggestions);
+
+    if (Object.keys(fieldSuggestions).length === 0) {
+        console.warn('[PL Coach] No field suggestions found in response');
+        alert('No field suggestions found. Try asking the AI coach to help fill specific fields.');
+        return;
+    }
+
+    // Get current form values
+    const currentValues = getCurrentFormValues(phase);
+    console.log('[PL Coach] Current form values:', currentValues);
+
+    // Build modal with field comparisons
+    showFieldReplacementModal(fieldSuggestions, currentValues, phase);
+});
+
+/**
+ * Parse AI response to extract field-specific content
+ * Enhanced to handle various response formats
+ */
+function parseAIResponseForFields(responseText, phase) {
+    const fields = {};
+
+    // Field patterns by phase
+    const fieldPatterns = {
+        'create_offer': {
+            'main_offer': [
+                /(?:main offer|core offering|product offering)[:\s]+([^]*?)(?=\n\n|pricing|bonus|guarantee|$)/i,
+                /\[main_offer\]\s*([^]*?)(?=\[|$)/i,
+                /(?:^|\n)main offer[:\s]*([^]*?)(?=\n\n|$)/im
+            ],
+            'pricing_strategy': [
+                /(?:pricing strategy|pricing|price point)[:\s]+([^]*?)(?=\n\n|bonus|guarantee|$)/i,
+                /\[pricing_strategy\]\s*([^]*?)(?=\[|$)/i
+            ],
+            'bonuses': [
+                /(?:bonuses?|bonus items?)[:\s]+([^]*?)(?=\n\n|guarantee|pricing|$)/i,
+                /\[bonuses\]\s*([^]*?)(?=\[|$)/i
+            ],
+            'guarantee': [
+                /(?:guarantee|money.back)[:\s]+([^]*?)(?=\n\n|$)/i,
+                /\[guarantee\]\s*([^]*?)(?=\[|$)/i
+            ]
+        },
+        'market_clarity': {
+            'target_audience': [
+                /(?:target audience|ideal customer)[:\s]+([^]*?)(?=\n\n|pain points|value|$)/i,
+                /\[target_audience\]\s*([^]*?)(?=\[|$)/i
+            ],
+            'pain_points': [
+                /(?:pain points?|problems?|challenges?)[:\s]+([^]*?)(?=\n\n|value|market|$)/i,
+                /\[pain_points\]\s*([^]*?)(?=\[|$)/i
+            ],
+            'value_proposition': [
+                /(?:value proposition|unique value)[:\s]+([^]*?)(?=\n\n|market|competitor|$)/i,
+                /\[value_proposition\]\s*([^]*?)(?=\[|$)/i
+            ]
+        },
+        'email_sequences': {
+            'email_subject': [
+                /(?:subject lines?)[:\s]+([^]*?)(?=\n\n|email body|preview|$)/i,
+                /\[email_subject\]\s*([^]*?)(?=\[|$)/i
+            ],
+            'email_body': [
+                /(?:email body|email copy|email content)[:\s]+([^]*?)(?=\n\n|subject|preview|$)/i,
+                /\[email_body\]\s*([^]*?)(?=\[|$)/i
+            ]
+        }
+    };
+
+    // Get patterns for current phase
+    const phasePatterns = fieldPatterns[phase] || {};
+
+    // Try to match each field
+    for (const [fieldId, patterns] of Object.entries(phasePatterns)) {
+        for (const pattern of patterns) {
+            const match = responseText.match(pattern);
+            if (match && match[1]) {
+                let content = match[1].trim();
+                // Clean up content
+                content = content.replace(/^[:\-\s]+/, ''); // Remove leading punctuation
+                content = content.replace(/\[\/[^\]]+\]/g, ''); // Remove closing tags
+
+                if (content.length > 20) { // Minimum viable content
+                    fields[fieldId] = content;
+                    console.log(`[PL Coach] Matched field: ${fieldId}, length: ${content.length}`);
+                    break; // Found content for this field
+                }
+            }
+        }
+    }
+
+    // Fallback: Split by paragraphs and try to match by keywords
+    if (Object.keys(fields).length === 0) {
+        console.log('[PL Coach] Using fallback paragraph matching');
+        const paragraphs = responseText.split(/\n\n+/);
+
+        // Simple keyword matching for fallback
+        const keywordMap = {
+            'main_offer': ['offer', 'program', 'course', 'service', 'product'],
+            'pricing_strategy': ['price', 'pricing', 'cost', '$', 'payment'],
+            'bonuses': ['bonus', 'bonuses', 'extra', 'include'],
+            'guarantee': ['guarantee', 'refund', 'money back', 'risk-free'],
+            'target_audience': ['audience', 'customer', 'client', 'who'],
+            'pain_points': ['pain', 'problem', 'struggle', 'challenge'],
+            'email_subject': ['subject', 'headline'],
+            'email_body': ['email', 'message', 'copy']
+        };
+
+        for (const [fieldId, keywords] of Object.entries(keywordMap)) {
+            for (const paragraph of paragraphs) {
+                const lowerPara = paragraph.toLowerCase();
+                if (keywords.some(kw => lowerPara.includes(kw)) && paragraph.length > 50) {
+                    if (!fields[fieldId]) {
+                        fields[fieldId] = paragraph.trim();
+                        console.log(`[PL Coach] Fallback matched: ${fieldId}`);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    return fields;
+}
+
+/**
+ * Get current form field values
+ */
+function getCurrentFormValues(phase) {
+    const values = {};
+
+    // Find all relevant form fields
+    const $form = jQuery('form, .phase-form, [data-phase="' + phase + '"]').first();
+
+    if ($form.length === 0) {
+        console.warn('[PL Coach] Form not found, searching globally');
+        // Search for fields globally
+        jQuery('textarea, input[type="text"]').each(function() {
+            const $field = jQuery(this);
+            const fieldId = $field.attr('id') || $field.attr('name');
+            if (fieldId) {
+                values[fieldId] = $field.val() || '';
+            }
+        });
+    } else {
+        // Search within form
+        $form.find('textarea, input[type="text"]').each(function() {
+            const $field = jQuery(this);
+            const fieldId = $field.attr('id') || $field.attr('name');
+            if (fieldId) {
+                values[fieldId] = $field.val() || '';
+            }
+        });
+    }
+
+    console.log('[PL Coach] Found form fields:', Object.keys(values));
+    return values;
+}
+
+/**
+ * Show field replacement modal with suggestions
+ */
+function showFieldReplacementModal(suggestions, currentValues, phase) {
+    // Remove any existing modal
+    jQuery('.pl-field-replacement-modal').remove();
+
+    let modalHtml = `
+        <div class="pl-field-replacement-modal" style="
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        ">
+            <div class="modal-content" style="
+                background: white;
+                padding: 30px;
+                border-radius: 8px;
+                max-width: 800px;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">Choose Fields to Replace</h2>
+                    <button class="close-modal" style="
+                        background: none;
+                        border: none;
+                        font-size: 24px;
+                        cursor: pointer;
+                        color: #666;
+                    ">&times;</button>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <button class="select-all-modal-fields" style="margin-right: 10px;">Select All</button>
+                    <button class="deselect-all-modal-fields">Deselect All</button>
+                    <span style="float: right; color: #666;" class="selection-count">0 of ${Object.keys(suggestions).length} selected</span>
+                </div>
+                
+                <div class="field-list">
+    `;
+
+    let fieldCount = 0;
+
+    for (const [fieldId, suggestedContent] of Object.entries(suggestions)) {
+        const currentContent = currentValues[fieldId] || '';
+        const fieldLabel = getFieldLabel(fieldId);
+
+        fieldCount++;
+
+        modalHtml += `
+            <div class="field-comparison" style="
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 15px;
+                margin-bottom: 15px;
+            ">
+                <label style="display: flex; align-items: start; cursor: pointer;">
+                    <input type="checkbox" 
+                           class="field-checkbox" 
+                           value="${fieldId}" 
+                           data-suggested="${escapeHtml(suggestedContent)}"
+                           style="margin-right: 10px; margin-top: 4px;"
+                           checked>
+                    <div style="flex: 1;">
+                        <strong style="display: block; margin-bottom: 10px; font-size: 14px; color: #333;">
+                            ${fieldLabel}
+                        </strong>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <div style="font-size: 11px; color: #666; margin-bottom: 5px;">CURRENT:</div>
+                                <div style="
+                                    padding: 10px;
+                                    background: #f5f5f5;
+                                    border-radius: 4px;
+                                    font-size: 12px;
+                                    max-height: 150px;
+                                    overflow-y: auto;
+                                    color: ${currentContent ? '#333' : '#999'};
+                                ">
+                                    ${currentContent || '(empty)'}
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <div style="font-size: 11px; color: #666; margin-bottom: 5px;">NEW (AI SUGGESTED):</div>
+                                <div style="
+                                    padding: 10px;
+                                    background: #e8f5e9;
+                                    border-radius: 4px;
+                                    font-size: 12px;
+                                    max-height: 150px;
+                                    overflow-y: auto;
+                                    color: #2e7d32;
+                                ">
+                                    ${escapeHtml(suggestedContent)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        `;
+    }
+
+    modalHtml += `
+                </div>
+                
+                <div style="
+                    margin-top: 20px;
+                    padding-top: 20px;
+                    border-top: 1px solid #ddd;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                ">
+                    <div style="background: #fff3cd; padding: 10px; border-radius: 4px; font-size: 12px; flex: 1; margin-right: 15px;">
+                        ⚠️ Selected fields will be replaced with AI-generated content.
+                    </div>
+                    <div>
+                        <button class="cancel-replacement" style="margin-right: 10px;">Cancel</button>
+                        <button class="confirm-replacement" style="
+                            background: #d32f2f;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-weight: 600;
+                        ">Replace Selected</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    jQuery('body').append(modalHtml);
+
+    console.log('[PL Coach] Modal shown with', fieldCount, 'fields');
+
+    // Update selection count
+    updateSelectionCount();
+}
+
+/**
+ * Helper: Get human-readable field label
+ */
+function getFieldLabel(fieldId) {
+    const labels = {
+        'main_offer': 'Main Offer',
+        'pricing_strategy': 'Pricing Strategy',
+        'bonuses': 'Bonuses',
+        'guarantee': 'Guarantee',
+        'target_audience': 'Target Audience',
+        'pain_points': 'Pain Points',
+        'value_proposition': 'Value Proposition',
+        'email_subject': 'Email Subject',
+        'email_body': 'Email Body',
+        'ad_headline': 'Ad Headline',
+        'ad_body': 'Ad Body'
+    };
+
+    return labels[fieldId] || fieldId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+/**
+ * Helper: Escape HTML
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Helper: Update selection count
+ */
+function updateSelectionCount() {
+    const $modal = jQuery('.pl-field-replacement-modal');
+    const total = $modal.find('.field-checkbox').length;
+    const checked = $modal.find('.field-checkbox:checked').length;
+    $modal.find('.selection-count').text(`${checked} of ${total} selected`);
+}
+
+// Modal interaction handlers
+jQuery(document).on('click', '.close-modal, .cancel-replacement', function() {
+    jQuery('.pl-field-replacement-modal').remove();
+});
+
+jQuery(document).on('click', '.select-all-modal-fields', function() {
+    jQuery('.pl-field-replacement-modal .field-checkbox').prop('checked', true);
+    updateSelectionCount();
+});
+
+jQuery(document).on('click', '.deselect-all-modal-fields', function() {
+    jQuery('.pl-field-replacement-modal .field-checkbox').prop('checked', false);
+    updateSelectionCount();
+});
+
+jQuery(document).on('change', '.pl-field-replacement-modal .field-checkbox', function() {
+    updateSelectionCount();
+});
+
+jQuery(document).on('click', '.confirm-replacement', function() {
+    const $modal = jQuery('.pl-field-replacement-modal');
+    const $checkedBoxes = $modal.find('.field-checkbox:checked');
+
+    if ($checkedBoxes.length === 0) {
+        alert('Please select at least one field to replace.');
+        return;
+    }
+
+    let replacedCount = 0;
+
+    $checkedBoxes.each(function() {
+        const $checkbox = jQuery(this);
+        const fieldId = $checkbox.val();
+        const suggestedContent = $checkbox.data('suggested');
+
+        // Find and update the field
+        const $field = jQuery(`#${fieldId}, [name="${fieldId}"]`).first();
+
+        if ($field.length) {
+            $field.val(suggestedContent).trigger('change');
+
+            // Visual feedback
+            $field.css('background', '#e8f5e9');
+            setTimeout(() => {
+                $field.css('background', '');
+            }, 2000);
+
+            replacedCount++;
+            console.log(`[PL Coach] Replaced field: ${fieldId}`);
+        } else {
+            console.warn(`[PL Coach] Field not found: ${fieldId}`);
+        }
+    });
+
+    $modal.remove();
+
+    // Show success message
+    if (replacedCount > 0) {
+        const $notice = jQuery(`
+            <div style="
+                position: fixed;
+                top: 50px;
+                right: 20px;
+                background: #4caf50;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 4px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                z-index: 999999;
+            ">
+                ✓ Successfully updated ${replacedCount} field${replacedCount !== 1 ? 's' : ''}
+            </div>
+        `);
+
+        jQuery('body').append($notice);
+        setTimeout(() => $notice.fadeOut(() => $notice.remove()), 3000);
+    }
+});
+
 // Initialize
 jQuery(document).ready(function() {
     if (typeof productLaunch !== 'undefined') {

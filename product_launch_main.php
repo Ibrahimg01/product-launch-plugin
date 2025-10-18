@@ -939,6 +939,9 @@ function pl_generate_field_assistance($phase, $field_id, $context = array()) {
 if (!function_exists('pl_get_field_system_prompt')) {
 function pl_get_field_system_prompt($phase, $field_id) {
     $base_prompt = "You are an expert product launch strategist and copywriter. Your task is to generate high-quality, specific content for the '{$field_id}' field in the '{$phase}' phase.";
+    $base_prompt .= " When asked to fill multiple fields, format your response clearly with field labels like:\n\n";
+    $base_prompt .= "[FIELD_NAME]:\nContent here\n\n";
+    $base_prompt .= "[NEXT_FIELD]:\nContent here\n\n";
 
     $field_instructions = array(
         'target_audience'   => " Write a detailed, specific target audience description. Include demographics, psychographics, behaviors, and where they spend time online. Be concrete and specific - avoid generic descriptions.",
