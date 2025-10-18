@@ -176,6 +176,12 @@ define('PL_OPTION_GROUP', 'pl_options');
 define('PL_OPTION_NAME', 'pl_settings');
 define('PL_NONCE_ACTION', 'pl_nonce_action');
 
+// Validation system classes
+require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-api.php';
+require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-quota.php';
+require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-access.php';
+require_once PL_PLUGIN_DIR . 'includes/idea-validation/validation-functions.php';
+
 /**
  * Enhanced activation with proper database schema
  */
