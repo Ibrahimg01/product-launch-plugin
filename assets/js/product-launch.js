@@ -5,7 +5,7 @@ else { window.__PL_FILE_GUARDS['assets/js/product-launch.js'] = 1;
 
 /*
  * Product Launch Plugin - Complete Fixed JavaScript
- * Version 2.3.52 - Preview Generation Fix
+ * Version 2.3.53 - All Conflicts Resolved
  * 
  * FIXES APPLIED:
  * - Bug #1: Modal z-index conflict (modal behind chat)
@@ -13,6 +13,7 @@ else { window.__PL_FILE_GUARDS['assets/js/product-launch.js'] = 1;
  * - Bug #3: Restored "Apply to Form" button
  * - Bug #4: AI Assist button styling
  * - Bug #5: Generate actual content preview before showing selective modal
+ * - Bug #6: Resolved all parsing conflicts with duplicate detection
  */
 
 class EnhancedProductLaunchCoach {
@@ -858,6 +859,7 @@ class EnhancedProductLaunchCoach {
         console.log('[PL Coach] formatAnalysisContent output:', formatted.substring(0, 200));
         return formatted.trim();
     }
+    
     // NEW METHOD: Generate actual content preview before showing modal
     requestImprovedContentFromAnalysis() {
         if (!this.currentAnalysis) {
@@ -1033,11 +1035,15 @@ Generate the content now:`;
     // NEW METHOD: Parse AI response into field => content map
     parseFieldContentResponse(aiResponse, fieldIds) {
         const parsed = {};
+        const seenContent = new Set();
+        const usedParagraphIndices = new Set(); // Track paragraph positions already consumed
+        const normalizeSignature = (text) => (text || '').replace(/\s+/g, ' ').trim().toLowerCase();
 
         console.log('[PL Coach] Parsing response for fields:', fieldIds);
 
         const responseText = this.coerceToText(aiResponse).replace(/\r\n/g, '\n');
 
+        // Try to parse as structured JSON first
         let structuredResponse = null;
         if (aiResponse && typeof aiResponse === 'object' && !Array.isArray(aiResponse)) {
             structuredResponse = aiResponse;
@@ -1054,8 +1060,11 @@ Generate the content now:`;
 
         const structuredMap = structuredResponse ? this.flattenStructuredResponse(structuredResponse) : null;
 
-        this.formContext.forEach((fieldInfo, fieldId) => {
-            if (!fieldIds.includes(fieldId)) return;
+        fieldIds.forEach(fieldId => {
+            const fieldInfo = this.formContext.get(fieldId);
+            if (!fieldInfo) {
+                return;
+            }
 
             const primaryLabel = fieldInfo?.label || this.humanizeFieldName(fieldId) || fieldId;
             const labelCandidates = new Set([
@@ -1084,7 +1093,13 @@ Generate the content now:`;
                     if (structuredMap.has(candidateKey)) {
                         const structuredValue = this.coerceToText(structuredMap.get(candidateKey)).trim();
                         if (structuredValue.length > 20) {
+                            const signature = normalizeSignature(structuredValue);
+                            if (!signature || seenContent.has(signature)) {
+                                continue;
+                            }
+
                             parsed[fieldId] = structuredValue;
+                            seenContent.add(signature);
                             console.log(`[PL Coach] ✓ Found structured content for ${primaryLabel}:`, structuredValue.substring(0, 100) + '...');
                             break;
                         }
@@ -1098,9 +1113,11 @@ Generate the content now:`;
 
             // Try multiple patterns with field name variations
             const boundary = '(?=\\n{2,}|\\n\\*\\*|\\n\\d+\\.\\s|$)';
-            let matchedContent = '';
+            let foundContent = false;
 
             for (const candidate of candidateLabels) {
+                if (foundContent) break;
+
                 const escapedLabel = this.escapeRegex(candidate);
                 const patterns = [
                     new RegExp(`\\*\\*${escapedLabel}\\*\\*[:\\s]*\\n+([\\s\\S]{40,2000}?)${boundary}`, 'i'),
@@ -1114,28 +1131,26 @@ Generate the content now:`;
                     try {
                         const match = responseText.match(patterns[i]);
                         if (match && match[1]) {
-                            matchedContent = match[1];
-                            break;
+                            let matchedContent = match[1]
+                                .replace(new RegExp(`^${escapedLabel}[:\\s-]*`, 'i'), '')
+                                .replace(/^\d+\.\s*/, '')
+                                .replace(/^[-•]\s*/, '')
+                                .replace(/^"|"$/g, '')
+                                .trim();
+
+                            if (matchedContent.length > 40) {
+                                const signature = normalizeSignature(matchedContent);
+                                if (signature && !seenContent.has(signature)) {
+                                    parsed[fieldId] = matchedContent;
+                                    seenContent.add(signature);
+                                    console.log(`[PL Coach] ✓ Found content for ${primaryLabel}:`, matchedContent.substring(0, 100) + '...');
+                                    foundContent = true;
+                                    break;
+                                }
+                            }
                         }
                     } catch (e) {
                         console.warn(`[PL Coach] Pattern ${i + 1} failed for ${primaryLabel} (${candidate}):`, e);
-                    }
-                }
-
-                if (matchedContent) {
-                    matchedContent = matchedContent
-                        .replace(new RegExp(`^${escapedLabel}[:\\s-]*`, 'i'), '')
-                        .replace(/^\d+\.\s*/, '')
-                        .replace(/^[-•]\s*/, '')
-                        .replace(/^"|"$/g, '')
-                        .trim();
-
-                    if (matchedContent.length > 40) {
-                        parsed[fieldId] = matchedContent;
-                        console.log(`[PL Coach] ✓ Found content for ${primaryLabel}:`, matchedContent.substring(0, 100) + '...');
-                        break;
-                    } else {
-                        matchedContent = '';
                     }
                 }
             }
@@ -1150,25 +1165,35 @@ Generate the content now:`;
             const paragraphs = responseText
                 .split(/\n{2,}/)
                 .map(p => p.trim())
-                .filter(p => p.length > 40 && !p.startsWith('#'));
+                .filter(p => p.length > 40 && !p.startsWith('#'))
+                .map((text, index) => ({ text, index, signature: normalizeSignature(text) }))
+                .filter(item => item.text.length > 0);
 
-            let matchedParagraph = null;
-            for (const paragraph of paragraphs) {
-                if (candidateLabels.some(label => new RegExp(`\\b${this.escapeRegex(label)}\\b`, 'i').test(paragraph))) {
-                    matchedParagraph = paragraph;
+            let matchedParagraphEntry = null;
+            for (const entry of paragraphs) {
+                if (usedParagraphIndices.has(entry.index)) {
+                    continue;
+                }
+                if (seenContent.has(entry.signature)) {
+                    continue;
+                }
+
+                if (candidateLabels.some(label => new RegExp(`\\b${this.escapeRegex(label)}\\b`, 'i').test(entry.text))) {
+                    matchedParagraphEntry = entry;
                     break;
                 }
             }
 
-            if (!matchedParagraph) {
+            if (!matchedParagraphEntry && paragraphs.length) {
+                const availableParagraphs = paragraphs.filter(entry => !usedParagraphIndices.has(entry.index) && !seenContent.has(entry.signature));
                 const fieldIndex = fieldIds.indexOf(fieldId);
-                if (fieldIndex >= 0 && fieldIndex < paragraphs.length) {
-                    matchedParagraph = paragraphs[fieldIndex];
+                if (availableParagraphs.length) {
+                    matchedParagraphEntry = availableParagraphs[fieldIndex] || availableParagraphs[availableParagraphs.length - 1];
                 }
             }
 
-            if (matchedParagraph) {
-                let cleanedParagraph = matchedParagraph;
+            if (matchedParagraphEntry) {
+                let cleanedParagraph = matchedParagraphEntry.text;
                 candidateLabels.forEach(label => {
                     cleanedParagraph = cleanedParagraph.replace(new RegExp(`^${this.escapeRegex(label)}[:\\s-]*`, 'i'), '');
                 });
@@ -1178,8 +1203,13 @@ Generate the content now:`;
                     .trim();
 
                 if (cleanedParagraph.length > 40) {
-                    parsed[fieldId] = cleanedParagraph;
-                    console.log(`[PL Coach] ✓ Extracted paragraph for ${primaryLabel}:`, cleanedParagraph.substring(0, 100) + '...');
+                    const signature = normalizeSignature(cleanedParagraph);
+                    usedParagraphIndices.add(matchedParagraphEntry.index);
+                    if (!seenContent.has(signature)) {
+                        parsed[fieldId] = cleanedParagraph;
+                        seenContent.add(signature);
+                        console.log(`[PL Coach] ✓ Extracted paragraph for ${primaryLabel}:`, cleanedParagraph.substring(0, 100) + '...');
+                    }
                 }
             }
 
@@ -1289,7 +1319,7 @@ Generate the content now:`;
 
     // Helper method for regex escaping
     escapeRegex(str) {
-        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\            .replace(/##\s+(.+?)(\n|$)/g, '<h4 class="analysis-h4" style="margin-top: 20px; margin-bottom: 10px; font-size: 16px; color:');
     }
     
     // MODIFIED: showOverrideConfirmation now accepts generated content
