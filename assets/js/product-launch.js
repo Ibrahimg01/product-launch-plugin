@@ -1319,7 +1319,7 @@ Generate the content now:`;
 
     // Helper method for regex escaping
     escapeRegex(str) {
-        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\            .replace(/##\s+(.+?)(\n|$)/g, '<h4 class="analysis-h4" style="margin-top: 20px; margin-bottom: 10px; font-size: 16px; color:');
+        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
     
     // MODIFIED: showOverrideConfirmation now accepts generated content
