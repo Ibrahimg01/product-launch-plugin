@@ -320,7 +320,7 @@
 
       var checkboxes = overlay.querySelectorAll('input[type="checkbox"][data-field-id]');
       var countEl = overlay.querySelector('[data-selected-count]');
-      var replaceBtn = overlay.querySelector('[data-action="replace"]');
+      var replaceBtn = overlay.querySelector('.replace-selected-fields');
 
       function updateCount() {
         var selected = 0, total = 0;
