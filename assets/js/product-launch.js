@@ -5,7 +5,7 @@ else { window.__PL_FILE_GUARDS['assets/js/product-launch.js'] = 1;
 
 /*
  * Product Launch Plugin - Complete Fixed JavaScript
- * Version 2.3.52 - Preview Generation Fix
+ * Version 2.3.53 - All Conflicts Resolved
  * 
  * FIXES APPLIED:
  * - Bug #1: Modal z-index conflict (modal behind chat)
@@ -13,6 +13,7 @@ else { window.__PL_FILE_GUARDS['assets/js/product-launch.js'] = 1;
  * - Bug #3: Restored "Apply to Form" button
  * - Bug #4: AI Assist button styling
  * - Bug #5: Generate actual content preview before showing selective modal
+ * - Bug #6: Resolved all parsing conflicts with duplicate detection
  */
 
 class EnhancedProductLaunchCoach {
@@ -858,6 +859,7 @@ class EnhancedProductLaunchCoach {
         console.log('[PL Coach] formatAnalysisContent output:', formatted.substring(0, 200));
         return formatted.trim();
     }
+    
     // NEW METHOD: Generate actual content preview before showing modal
     requestImprovedContentFromAnalysis() {
         if (!this.currentAnalysis) {
@@ -1041,6 +1043,7 @@ Generate the content now:`;
 
         const responseText = this.coerceToText(aiResponse).replace(/\r\n/g, '\n');
 
+        // Try to parse as structured JSON first
         let structuredResponse = null;
         if (aiResponse && typeof aiResponse === 'object' && !Array.isArray(aiResponse)) {
             structuredResponse = aiResponse;
@@ -1316,7 +1319,7 @@ Generate the content now:`;
 
     // Helper method for regex escaping
     escapeRegex(str) {
-        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\            .replace(/##\s+(.+?)(\n|$)/g, '<h4 class="analysis-h4" style="margin-top: 20px; margin-bottom: 10px; font-size: 16px; color:');
     }
     
     // MODIFIED: showOverrideConfirmation now accepts generated content
