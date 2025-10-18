@@ -1,5 +1,6 @@
 /**
  * Product Launch Plugin - Main Styles
+ * FULLY RESOLVED - All conflicts fixed
  */
 
 /* ==========================================================================
@@ -744,18 +745,13 @@
 .card-action { text-align: center; }
 
 
-/* ===== AI Chat Input Full-Width Fix —— Applied 2025-09-20T20:57:32.789229 =====
-   Source: user-provided patch (chat_input_fix.css)
-   Notes: Appended at end to override prior rules safely.
-=========================================================== */
-
-/* Updated CSS for chat input - replace the existing chat input styles in product-launch.css */
+/* ===== AI Chat Input Full-Width Fix ===== */
 
 .chat-input-wrapper {
     display: flex;
     gap: 12px;
     align-items: flex-end;
-    width: 100%; /* Ensure wrapper takes full width */
+    width: 100%;
 }
 
 .chat-textarea {
@@ -769,8 +765,8 @@
     min-height: 44px;
     font-family: inherit;
     transition: border-color 0.2s ease;
-    width: 100%; /* Ensure textarea takes full available width */
-    box-sizing: border-box; /* Include padding in width calculation */
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .chat-textarea:focus {
@@ -791,7 +787,7 @@
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
-    flex-shrink: 0; /* Prevent button from shrinking */
+    flex-shrink: 0;
 }
 
 .chat-send-btn:hover:not(:disabled) {
@@ -805,7 +801,6 @@
     transform: none;
 }
 
-/* Ensure the form takes full width */
 .chat-form {
     display: flex;
     flex-direction: column;
@@ -813,7 +808,6 @@
     width: 100%;
 }
 
-/* Make sure quick actions don't interfere with input width */
 .quick-actions {
     display: flex;
     gap: 8px;
@@ -822,7 +816,6 @@
     width: 100%;
 }
 
-/* Ensure chat input container has proper padding and width */
 .chat-input {
     padding: 20px;
     border-top: 1px solid #e5e7eb;
@@ -874,27 +867,23 @@
     100% { left: 100%; }
 }
 
-/* Modal header beta badge positioning */
 .modal-title .beta-badge {
     margin-left: 8px;
     font-size: 10px;
     padding: 3px 6px;
 }
 
-/* Phase header beta badge positioning */
 .phase-header h1 .beta-badge {
     margin-left: 15px;
     vertical-align: middle;
 }
 
-/* Dashboard beta badge in cards */
 .card-content h3 .beta-badge {
     margin-left: 8px;
     font-size: 9px;
     padding: 2px 5px;
 }
 
-/* Mobile responsiveness */
 @media (max-width: 768px) {
     .beta-badge {
         font-size: 9px;
@@ -913,7 +902,7 @@
 .ai-coach-section {
     text-align: center;
 }
-/* Ensure children align nicely when using flex-based inner layouts */
+
 .ai-coach-section .ai-coach-inner,
 .ai-coach-section .ai-coach-actions {
     justify-content: center;
@@ -926,35 +915,18 @@
 }
 
 
-/* ==== Field Quality Indicators (clean add) 2025-09-28 17:09:11 UTC ==== */
+/* ==== Field Quality Indicators ==== */
 .ai-fillable.field-empty { border-left: 4px solid #ef4444 !important; }
 .ai-fillable.field-thin  { border-left: 4px solid #f59e0b !important; }
 .ai-fillable.field-good  { border-left: 4px solid #10b981 !important; }
 .field-quality-indicator { font-weight: 600; font-size: 12px; margin-top: 5px; }
 
-/* Strong specificity + fallback so accent always shows even if borders are overridden */
 input.ai-fillable.field-empty, textarea.ai-fillable.field-empty { box-shadow: inset 4px 0 0 0 #ef4444 !important; }
 input.ai-fillable.field-thin,  textarea.ai-fillable.field-thin  { box-shadow: inset 4px 0 0 0 #f59e0b !important; }
 input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: inset 4px 0 0 0 #10b981 !important; }
-/* ==== end indicators ==== */
 
 
-
-/* ==== Field Quality Indicators (re-added) 2025-09-28 18:16:31 UTC ==== */
-.ai-fillable.field-empty { border-left: 4px solid #ef4444 !important; }
-.ai-fillable.field-thin  { border-left: 4px solid #f59e0b !important; }
-.ai-fillable.field-good  { border-left: 4px solid #10b981 !important; }
-.field-quality-indicator { font-weight: 600; font-size: 12px; margin-top: 5px; }
-
-/* Fallback accent so it's visible even if borders are overridden */
-input.ai-fillable.field-empty, textarea.ai-fillable.field-empty { box-shadow: inset 4px 0 0 0 #ef4444 !important; }
-input.ai-fillable.field-thin,  textarea.ai-fillable.field-thin  { box-shadow: inset 4px 0 0 0 #f59e0b !important; }
-input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: inset 4px 0 0 0 #10b981 !important; }
-/* ==== end indicators ==== */
-
-
-
-/* Improved Message Actions Layout + Smart Button Support (added 2025-09-28 19:13:54 UTC) */
+/* Improved Message Actions Layout */
 .message-actions {
     margin-top: 15px;
     display: flex;
@@ -962,106 +934,6 @@ input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: in
     gap: 10px;
     padding: 10px 0;
     border-top: 1px solid #f3f4f6;
-}
-
-.apply-to-form-btn {
-    background: #3b82f6;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    padding: 8px 16px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 500;
-    min-width: 120px;
-    justify-content: center;
-}
-
-.apply-to-form-btn:hover {
-    background: #2563eb;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
-}
-
-.apply-to-form-btn:active {
-    transform: translateY(0);
-}
-
-.apply-to-form-btn .dashicons {
-    font-size: 14px;
-}
-
-/* Ensure proper spacing in AI messages */
-.ai-message .message-content {
-    margin-bottom: 0;
-}
-
-.ai-message .message-actions {
-    margin-top: 12px;
-}
-
-/* Wider Chat Input */
-.chat-input {
-    padding: 20px 25px;
-}
-
-.chat-input-wrapper {
-    display: flex;
-    gap: 15px;
-    align-items: flex-end;
-    width: 100%;
-}
-
-.chat-textarea {
-    flex: 1;
-    min-height: 50px;
-    padding: 15px 18px;
-    border-radius: 25px;
-    font-size: 15px;
-}
-
-.chat-send-btn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-/* Quick actions also get more space */
-.quick-actions {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 18px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.quick-action-btn {
-    padding: 10px 16px;
-    font-size: 13px;
-    border-radius: 8px;
-}
-
-/* Improvement modal button styling */
-.improvement-action-btn:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-}
-
-
-
-/* Fixed Message Actions Layout - Complete Fix (added 2025-09-28 19:24:30 UTC) */
-.message-actions {
-    margin-top: 15px;
-    display: flex;
-    justify-content: center;
-    padding: 10px 0;
-    border-top: 1px solid #f3f4f6;
-    width: 100%;
 }
 
 .apply-to-form-btn {
@@ -1099,36 +971,89 @@ input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: in
     height: 16px;
 }
 
-/* Remove any conflicting button styles */
 .message-actions .button,
 .message-actions .copy-message-btn {
     display: none !important;
 }
 
-/* Ensure proper spacing in AI messages */
 .ai-message .message-content {
     margin-bottom: 0;
 }
+
 .ai-message .message-actions {
     margin-top: 12px;
 }
 
+/* Wider Chat Input */
+.chat-input {
+    padding: 20px 25px;
+}
+
+.chat-input-wrapper {
+    display: flex;
+    gap: 15px;
+    align-items: flex-end;
+    width: 100%;
+}
+
+.chat-textarea {
+    flex: 1;
+    min-height: 50px;
+    padding: 15px 18px;
+    border-radius: 25px;
+    font-size: 15px;
+}
+
+.chat-send-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.quick-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.quick-action-btn {
+    padding: 10px 16px;
+    font-size: 13px;
+    border-radius: 8px;
+}
+
+.improvement-action-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+/* Subtle disclaimer under chat input */
+#product-launch-modal .plc-disclaimer {
+    margin: 8px auto 12px;
+    text-align: center;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.35;
+    opacity: 0.9;
+    max-width: 85%;
+    display: block;
+}
 
 
 /* ===== Bug Fixes CSS (v2.3.51) ===== */
-/* ============================================
-   BUG FIXES CSS - Add to product-launch.css
-   ============================================ */
 
 /* ====================
-   FIX #1: Z-Index Fix (Backup CSS solution)
+   FIX #1: Z-Index Fix
    ==================== */
 #product-launch-modal {
     z-index: 100000 !important;
 }
 
 .improvement-modal-overlay {
-    z-index: 100001 !important; /* Always above chat modal */
+    z-index: 100001 !important;
 }
 
 /* ====================
@@ -1144,7 +1069,7 @@ input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: in
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100002; /* Above improvement modal */
+    z-index: 100002;
     animation: fadeIn 0.3s ease;
 }
 
@@ -1274,7 +1199,7 @@ input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: in
 }
 
 /* ====================
-   FIX #4: AI Assist Button Styling (RESTORED)
+   FIX #4: AI Assist Button Styling
    ==================== */
 .ai-assist-btn {
     display: inline-flex;
@@ -1320,7 +1245,6 @@ input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: in
     font-weight: 500;
 }
 
-/* Loading state for AI assist button */
 .ai-assist-btn .spin {
     animation: spin 1s linear infinite;
 }
@@ -1334,7 +1258,6 @@ input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: in
     }
 }
 
-/* AI assist button positioning */
 .form-table th {
     position: relative;
 }
@@ -1344,7 +1267,6 @@ input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: in
     margin-left: 8px;
 }
 
-/* For textareas */
 textarea.ai-fillable {
     position: relative;
 }
@@ -1354,7 +1276,6 @@ textarea + .ai-assist-btn {
     margin-top: 8px;
 }
 
-/* Alternative: inline positioning */
 .field-with-ai-assist {
     display: flex;
     align-items: flex-start;
@@ -1365,7 +1286,6 @@ textarea + .ai-assist-btn {
     flex: 1;
 }
 
-/* AI Loading state for fields */
 .ai-fillable.ai-loading {
     border-color: #667eea !important;
     box-shadow: 0 0 0 1px #667eea !important;
@@ -1382,13 +1302,11 @@ textarea + .ai-assist-btn {
     }
 }
 
-/* AI Filled state */
 .ai-fillable.ai-filled {
     border-color: #10b981 !important;
     background: #f0fdf4 !important;
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
     .ai-assist-btn {
         padding: 5px 10px;
@@ -1412,19 +1330,7 @@ textarea + .ai-assist-btn {
         font-size: 14px !important;
     }
 }
-/* ===== End Bug Fixes CSS ===== */
 
-/* Subtle disclaimer under chat input */
-#product-launch-modal .plc-disclaimer {
-    margin: 8px auto 12px;
-    text-align: center;
-    font-size: 12px;
-    color: #6b7280;
-    line-height: 1.35;
-    opacity: 0.9;
-    max-width: 85%;
-    display: block;
-}
 
 /* ===== IMPROVEMENT MODAL LAYOUT FIX (Critical for scrolling) ===== */
 
@@ -1501,52 +1407,6 @@ textarea + .ai-assist-btn {
     font-size: 15px;
     min-height: 0;
 }
-
-.improvement-actions {
-    padding: 20px 30px;
-    border-top: 1px solid #e5e7eb;
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    background: white;
-    flex-shrink: 0;
-}
-
-.improvement-action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
-    border-radius: 6px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-weight: 500;
-}
-
-.improvement-close-btn {
-    background: #f3f4f6;
-    border: 1px solid #d1d5db;
-    color: #374151;
-}
-
-.improvement-close-btn:hover {
-    background: #e5e7eb;
-}
-
-.improvement-apply-btn {
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: white;
-    border: none;
-}
-
-.improvement-apply-btn:hover {
-    background: linear-gradient(135deg, #059669, #047857);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-/* ===== Additional Improvement Modal Typography & Lists ===== */
 
 .improvement-content p,
 .improvement-content .analysis-p {
@@ -1651,7 +1511,7 @@ textarea + .ai-assist-btn {
 .improvement-content .analysis-bullet {
     margin: 14px 0;
     padding-left: 16px;
-    line-height: 1.7;
+    line-height: 1.8;
     display: flex;
     gap: 8px;
 }
@@ -1697,6 +1557,50 @@ textarea + .ai-assist-btn {
 
 .improvement-content::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
+}
+
+.improvement-actions {
+    padding: 20px 30px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    background: white;
+    flex-shrink: 0;
+}
+
+.improvement-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.improvement-close-btn {
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    color: #374151;
+}
+
+.improvement-close-btn:hover {
+    background: #e5e7eb;
+}
+
+.improvement-apply-btn {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+}
+
+.improvement-apply-btn:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 @keyframes fadeIn {

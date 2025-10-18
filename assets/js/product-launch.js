@@ -1103,7 +1103,7 @@ Generate the content now:`;
 
     // Helper method for regex escaping
     escapeRegex(str) {
-        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\                const leadingSplit = trimmedText.match(/^([^:\-\n]{1');
     }
     
     // MODIFIED: showOverrideConfirmation now accepts generated content
