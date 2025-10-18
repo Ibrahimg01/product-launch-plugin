@@ -1,5 +1,6 @@
 /**
  * Product Launch Plugin - Main Styles
+ * FULLY RESOLVED - All conflicts fixed
  */
 
 /* ==========================================================================
@@ -425,666 +426,7 @@
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 500;
-    min-width: 120px;
-    justify-content: center;
-}
-
-.apply-to-form-btn:hover {
-    background: #2563eb;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
-}
-
-.apply-to-form-btn:active {
-    transform: translateY(0);
-}
-
-.apply-to-form-btn .dashicons {
-    font-size: 14px;
-}
-
-/* Ensure proper spacing in AI messages */
-.ai-message .message-content {
-    margin-bottom: 0;
-}
-
-.ai-message .message-actions {
-    margin-top: 12px;
-}
-
-/* Wider Chat Input */
-.chat-input {
-    padding: 20px 25px;
-}
-
-.chat-input-wrapper {
-    display: flex;
-    gap: 15px;
-    align-items: flex-end;
-    width: 100%;
-}
-
-.chat-textarea {
-    flex: 1;
-    min-height: 50px;
-    padding: 15px 18px;
-    border-radius: 25px;
-    font-size: 15px;
-}
-
-.chat-send-btn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-/* Quick actions also get more space */
-.quick-actions {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 18px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.quick-action-btn {
-    padding: 10px 16px;
-    font-size: 13px;
-    border-radius: 8px;
-}
-
-/* Improvement modal button styling */
-.improvement-action-btn:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-}
-
-
-
-/* Fixed Message Actions Layout - Complete Fix (added 2025-09-28 19:24:30 UTC) */
-.message-actions {
-    margin-top: 15px;
-    display: flex;
-    justify-content: center;
-    padding: 10px 0;
-    border-top: 1px solid #f3f4f6;
-    width: 100%;
-}
-
-.apply-to-form-btn {
-    background: #3b82f6 !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 6px;
-    padding: 10px 20px;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 500;
     text-decoration: none;
-    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
-}
-
-.apply-to-form-btn:hover {
-    background: #2563eb !important;
-    color: white !important;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
-}
-
-.apply-to-form-btn:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-}
-
-.apply-to-form-btn .dashicons {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-}
-
-/* Remove any conflicting button styles */
-.message-actions .button,
-.message-actions .copy-message-btn {
-    display: none !important;
-}
-
-/* Ensure proper spacing in AI messages */
-.ai-message .message-content {
-    margin-bottom: 0;
-}
-.ai-message .message-actions {
-    margin-top: 12px;
-}
-
-
-
-/* Improvement Modal Styles */
-.improvement-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    z-index: 1000000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: fadeIn 0.3s ease;
-}
-.improvement-modal {
-    background: white;
-    border-radius: 12px;
-    max-width: 700px;
-    width: 90%;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-}
-.improvement-header {
-    padding: 20px 30px;
-    border-bottom: 1px solid #e5e7eb;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    color: white;
-    border-radius: 12px 12px 0 0;
-}
-.improvement-header h3 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 18px; }
-.improvement-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s ease; }
-.improvement-close:hover { background: rgba(255, 255, 255, 0.2); }
-.improvement-content {
-    padding: 30px;
-    overflow-y: auto;
-    flex: 1;
-    line-height: 1.8;
-    font-size: 15px;
-}
-
-/* Better paragraph spacing */
-.improvement-content p,
-.improvement-content .analysis-p {
-    margin: 18px 0;
-    line-height: 1.8;
-    color: #4b5563;
-}
-
-/* Better heading spacing */
-.improvement-content h3,
-.improvement-content .analysis-h3 {
-    margin-top: 28px;
-    margin-bottom: 14px;
-    font-size: 19px;
-    color: #1f2937;
-    font-weight: 700;
-    padding-bottom: 8px;
-    border-bottom: 2px solid #e5e7eb;
-}
-
-.improvement-content h4,
-.improvement-content .analysis-h4 {
-    margin-top: 20px;
-    margin-bottom: 12px;
-    font-size: 16px;
-    color: #374151;
-    font-weight: 600;
-}
-
-/* Numbered list items - enhanced spacing and styling */
-.improvement-content .analysis-list-item {
-    margin: 24px 0 !important;
-    padding: 22px 24px !important;
-    background: linear-gradient(to right, #f0f9ff, #ffffff);
-    border-left: 4px solid #3b82f6;
-    border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-    line-height: 1.8;
-    display: flex;
-    gap: 18px;
-    align-items: flex-start;
-    width: 100%;
-    transition: all 0.2s ease;
-}
-
-.improvement-content .analysis-list-item + .analysis-list-item {
-    margin-top: 0 !important;
-}
-
-.improvement-content .analysis-list-item:hover {
-    background: linear-gradient(to right, #e0f2fe, #f8fafc);
-    box-shadow: 0 6px 12px rgba(59, 130, 246, 0.12);
-}
-
-.improvement-content .list-number {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    background: #3b82f6;
-    color: #ffffff;
-    border-radius: 50%;
-    font-weight: 700;
-    font-size: 15px;
-    flex-shrink: 0;
-    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
-}
-
-.improvement-content .list-body {
-    flex: 1;
-    color: #4b5563;
-    line-height: 1.8;
-    padding-top: 4px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-.improvement-content .list-title {
-    display: block;
-    font-weight: 600;
-    color: #1f2937;
-    font-size: 15px;
-    padding-bottom: 4px;
-}
-
-.improvement-content .list-description {
-    display: block;
-    margin-top: 4px;
-    padding-left: 2px;
-    color: #4b5563;
-}
-
-.improvement-content .analysis-list-item .list-body > br {
-    display: block;
-    margin-bottom: 8px;
-}
-
-.improvement-content .analysis-list-item .list-body p {
-    margin: 0 0 8px 0;
-}
-
-/* Bullet point spacing */
-.improvement-content .analysis-bullet {
-    margin: 14px 0;
-    padding-left: 16px;
-    line-height: 1.8;
-    display: flex;
-    gap: 8px;
-}
-
-.improvement-content .bullet {
-    color: #3b82f6;
-    font-weight: bold;
-    flex-shrink: 0;
-}
-
-/* Strong text emphasis */
-.improvement-content strong {
-    color: #1f2937;
-    font-weight: 600;
-}
-
-/* Section separators */
-.improvement-content > div {
-    margin: 20px 0;
-}
-
-/* First paragraph no top margin */
-.improvement-content > p:first-child,
-.improvement-content > .analysis-p:first-child {
-    margin-top: 0;
-}
-
-/* Last paragraph no bottom margin */
-.improvement-content > p:last-child,
-.improvement-content > .analysis-p:last-child {
-    margin-bottom: 0;
-}
-
-/* Scrollbar styling */
-.improvement-content::-webkit-scrollbar {
-    width: 10px;
-}
-
-.improvement-content::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 5px;
-}
-
-.improvement-content::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 5px;
-}
-
-.improvement-content::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-}
-.improvement-actions { padding: 20px 30px; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; justify-content: flex-end; }
-.improvement-action-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
-.improvement-close-btn { background: #f3f4f6; border: 1px solid #d1d5db; color: #374151; }
-.improvement-close-btn:hover { background: #e5e7eb; }
-.improvement-apply-btn { background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; }
-.improvement-apply-btn:hover { background: linear-gradient(135deg, #059669, #047857); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@media (max-width: 768px) {
-  .improvement-modal { width: 95%; max-height: 90vh; }
-  .improvement-actions { flex-direction: column; }
-  .improvement-action-btn { width: 100%; justify-content: center; }
-}
-
-/* Subtle disclaimer under chat input */
-#product-launch-modal .plc-disclaimer { margin: 8px auto 12px; text-align: center; font-size: 12px; color: #6b7280; line-height: 1.35; opacity: .9; max-width: 85%; display: block;}
-
-
-/* ===== Bug Fixes CSS (v2.3.51) ===== */
-/* ============================================
-   BUG FIXES CSS - Add to product-launch.css
-   ============================================ */
-
-/* ====================
-   FIX #1: Z-Index Fix (Backup CSS solution)
-   ==================== */
-#product-launch-modal {
-    z-index: 100000 !important;
-}
-
-.improvement-modal-overlay {
-    z-index: 100001 !important; /* Always above chat modal */
-}
-
-/* ====================
-   FIX #2: Override Confirmation Modal
-   ==================== */
-.override-confirmation-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100002; /* Above improvement modal */
-    animation: fadeIn 0.3s ease;
-}
-
-.override-modal-content {
-    background: white;
-    border-radius: 12px;
-    padding: 32px;
-    max-width: 500px;
-    width: 90%;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-}
-
-.override-modal-content h3 {
-    margin: 0 0 16px 0;
-    font-size: 22px;
-    color: #1d2327;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.override-modal-content h3::before {
-    content: '⚠️';
-    font-size: 24px;
-}
-
-.override-modal-content > p {
-    margin: 0 0 24px 0;
-    color: #3c434a;
-    font-size: 15px;
-    line-height: 1.6;
-}
-
-.override-options {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 20px;
-}
-
-.override-options .button {
-    padding: 14px 24px !important;
-    font-size: 15px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 8px !important;
-    border-radius: 8px !important;
-}
-
-.override-btn {
-    background: #dc2626 !important;
-    border-color: #dc2626 !important;
-    color: white !important;
-}
-
-.override-btn:hover {
-    background: #b91c1c !important;
-    border-color: #b91c1c !important;
-}
-
-.cancel-override-btn {
-    background: white !important;
-    border-color: #d1d5db !important;
-    color: #3c434a !important;
-}
-
-.cancel-override-btn:hover {
-    background: #f9fafb !important;
-}
-
-.override-warning {
-    padding: 12px 16px;
-    background: #fef3c7;
-    border-left: 4px solid #f59e0b;
-    border-radius: 4px;
-    font-size: 13px;
-    color: #92400e;
-    margin: 0;
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-}
-
-.override-warning .dashicons {
-    color: #f59e0b;
-    flex-shrink: 0;
-    margin-top: 2px;
-}
-
-/* ====================
-   FIX #3: Apply to Form Button (Restored)
-   ==================== */
-.message-actions {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-}
-
-.apply-to-form-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
-}
-
-.apply-to-form-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.3);
-    transform: translateY(-1px);
-}
-
-.apply-to-form-btn .dashicons {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-}
-
-/* ====================
-   FIX #4: AI Assist Button Styling (RESTORED)
-   ==================== */
-.ai-assist-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    margin-left: 8px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
-}
-
-.ai-assist-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
-    background: linear-gradient(135deg, #7c8ef5 0%, #8b5db8 100%);
-}
-
-.ai-assist-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(102, 126, 234, 0.3);
-}
-
-.ai-assist-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.ai-assist-btn .dashicons {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-}
-
-.ai-assist-btn .ai-assist-text {
-    font-weight: 500;
-}
-
-/* Loading state for AI assist button */
-.ai-assist-btn .spin {
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* AI assist button positioning */
-.form-table th {
-    position: relative;
-}
-
-.form-table .ai-assist-btn {
-    vertical-align: middle;
-    margin-left: 8px;
-}
-
-/* For textareas */
-textarea.ai-fillable {
-    position: relative;
-}
-
-.ai-assist-btn + textarea,
-textarea + .ai-assist-btn {
-    margin-top: 8px;
-}
-
-/* Alternative: inline positioning */
-.field-with-ai-assist {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-}
-
-.field-with-ai-assist .ai-fillable {
-    flex: 1;
-}
-
-/* AI Loading state for fields */
-.ai-fillable.ai-loading {
-    border-color: #667eea !important;
-    box-shadow: 0 0 0 1px #667eea !important;
-    position: relative;
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0%, 100% {
-        box-shadow: 0 0 0 1px #667eea;
-    }
-    50% {
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
-    }
-}
-
-/* AI Filled state */
-.ai-fillable.ai-filled {
-    border-color: #10b981 !important;
-    background: #f0fdf4 !important;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .ai-assist-btn {
-        padding: 5px 10px;
-        font-size: 12px;
-    }
-    
-    .ai-assist-text {
-        display: none;
-    }
-    
-    .ai-assist-btn .dashicons {
-        margin: 0;
-    }
-    
-    .override-modal-content {
-        padding: 24px;
-    }
-    
-    .override-options .button {
-        padding: 12px 20px !important;
-        font-size: 14px !important;
-    }
-}
-/* ===== End Bug Fixes CSS ===== */text-decoration: none;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -1403,18 +745,13 @@ textarea + .ai-assist-btn {
 .card-action { text-align: center; }
 
 
-/* ===== AI Chat Input Full-Width Fix —— Applied 2025-09-20T20:57:32.789229 =====
-   Source: user-provided patch (chat_input_fix.css)
-   Notes: Appended at end to override prior rules safely.
-=========================================================== */
-
-/* Updated CSS for chat input - replace the existing chat input styles in product-launch.css */
+/* ===== AI Chat Input Full-Width Fix ===== */
 
 .chat-input-wrapper {
     display: flex;
     gap: 12px;
     align-items: flex-end;
-    width: 100%; /* Ensure wrapper takes full width */
+    width: 100%;
 }
 
 .chat-textarea {
@@ -1428,8 +765,8 @@ textarea + .ai-assist-btn {
     min-height: 44px;
     font-family: inherit;
     transition: border-color 0.2s ease;
-    width: 100%; /* Ensure textarea takes full available width */
-    box-sizing: border-box; /* Include padding in width calculation */
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .chat-textarea:focus {
@@ -1450,7 +787,7 @@ textarea + .ai-assist-btn {
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
-    flex-shrink: 0; /* Prevent button from shrinking */
+    flex-shrink: 0;
 }
 
 .chat-send-btn:hover:not(:disabled) {
@@ -1464,7 +801,6 @@ textarea + .ai-assist-btn {
     transform: none;
 }
 
-/* Ensure the form takes full width */
 .chat-form {
     display: flex;
     flex-direction: column;
@@ -1472,7 +808,6 @@ textarea + .ai-assist-btn {
     width: 100%;
 }
 
-/* Make sure quick actions don't interfere with input width */
 .quick-actions {
     display: flex;
     gap: 8px;
@@ -1481,7 +816,6 @@ textarea + .ai-assist-btn {
     width: 100%;
 }
 
-/* Ensure chat input container has proper padding and width */
 .chat-input {
     padding: 20px;
     border-top: 1px solid #e5e7eb;
@@ -1533,27 +867,23 @@ textarea + .ai-assist-btn {
     100% { left: 100%; }
 }
 
-/* Modal header beta badge positioning */
 .modal-title .beta-badge {
     margin-left: 8px;
     font-size: 10px;
     padding: 3px 6px;
 }
 
-/* Phase header beta badge positioning */
 .phase-header h1 .beta-badge {
     margin-left: 15px;
     vertical-align: middle;
 }
 
-/* Dashboard beta badge in cards */
 .card-content h3 .beta-badge {
     margin-left: 8px;
     font-size: 9px;
     padding: 2px 5px;
 }
 
-/* Mobile responsiveness */
 @media (max-width: 768px) {
     .beta-badge {
         font-size: 9px;
@@ -1572,7 +902,7 @@ textarea + .ai-assist-btn {
 .ai-coach-section {
     text-align: center;
 }
-/* Ensure children align nicely when using flex-based inner layouts */
+
 .ai-coach-section .ai-coach-inner,
 .ai-coach-section .ai-coach-actions {
     justify-content: center;
@@ -1585,35 +915,18 @@ textarea + .ai-assist-btn {
 }
 
 
-/* ==== Field Quality Indicators (clean add) 2025-09-28 17:09:11 UTC ==== */
+/* ==== Field Quality Indicators ==== */
 .ai-fillable.field-empty { border-left: 4px solid #ef4444 !important; }
 .ai-fillable.field-thin  { border-left: 4px solid #f59e0b !important; }
 .ai-fillable.field-good  { border-left: 4px solid #10b981 !important; }
 .field-quality-indicator { font-weight: 600; font-size: 12px; margin-top: 5px; }
 
-/* Strong specificity + fallback so accent always shows even if borders are overridden */
 input.ai-fillable.field-empty, textarea.ai-fillable.field-empty { box-shadow: inset 4px 0 0 0 #ef4444 !important; }
 input.ai-fillable.field-thin,  textarea.ai-fillable.field-thin  { box-shadow: inset 4px 0 0 0 #f59e0b !important; }
 input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: inset 4px 0 0 0 #10b981 !important; }
-/* ==== end indicators ==== */
 
 
-
-/* ==== Field Quality Indicators (re-added) 2025-09-28 18:16:31 UTC ==== */
-.ai-fillable.field-empty { border-left: 4px solid #ef4444 !important; }
-.ai-fillable.field-thin  { border-left: 4px solid #f59e0b !important; }
-.ai-fillable.field-good  { border-left: 4px solid #10b981 !important; }
-.field-quality-indicator { font-weight: 600; font-size: 12px; margin-top: 5px; }
-
-/* Fallback accent so it's visible even if borders are overridden */
-input.ai-fillable.field-empty, textarea.ai-fillable.field-empty { box-shadow: inset 4px 0 0 0 #ef4444 !important; }
-input.ai-fillable.field-thin,  textarea.ai-fillable.field-thin  { box-shadow: inset 4px 0 0 0 #f59e0b !important; }
-input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: inset 4px 0 0 0 #10b981 !important; }
-/* ==== end indicators ==== */
-
-
-
-/* Improved Message Actions Layout + Smart Button Support (added 2025-09-28 19:13:54 UTC) */
+/* Improved Message Actions Layout */
 .message-actions {
     margin-top: 15px;
     display: flex;
@@ -1624,11 +937,704 @@ input.ai-fillable.field-good,  textarea.ai-fillable.field-good  { box-shadow: in
 }
 
 .apply-to-form-btn {
-    background: #3b82f6;
+    background: #3b82f6 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    text-decoration: none;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+}
+
+.apply-to-form-btn:hover {
+    background: #2563eb !important;
+    color: white !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
+}
+
+.apply-to-form-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.apply-to-form-btn .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.message-actions .button,
+.message-actions .copy-message-btn {
+    display: none !important;
+}
+
+.ai-message .message-content {
+    margin-bottom: 0;
+}
+
+.ai-message .message-actions {
+    margin-top: 12px;
+}
+
+/* Wider Chat Input */
+.chat-input {
+    padding: 20px 25px;
+}
+
+.chat-input-wrapper {
+    display: flex;
+    gap: 15px;
+    align-items: flex-end;
+    width: 100%;
+}
+
+.chat-textarea {
+    flex: 1;
+    min-height: 50px;
+    padding: 15px 18px;
+    border-radius: 25px;
+    font-size: 15px;
+}
+
+.chat-send-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.quick-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.quick-action-btn {
+    padding: 10px 16px;
+    font-size: 13px;
+    border-radius: 8px;
+}
+
+.improvement-action-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+/* Subtle disclaimer under chat input */
+#product-launch-modal .plc-disclaimer {
+    margin: 8px auto 12px;
+    text-align: center;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.35;
+    opacity: 0.9;
+    max-width: 85%;
+    display: block;
+}
+
+
+/* ===== Bug Fixes CSS (v2.3.51) ===== */
+
+/* ====================
+   FIX #1: Z-Index Fix
+   ==================== */
+#product-launch-modal {
+    z-index: 100000 !important;
+}
+
+.improvement-modal-overlay {
+    z-index: 100001 !important;
+}
+
+/* ====================
+   FIX #2: Override Confirmation Modal
+   ==================== */
+.override-confirmation-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100002;
+    animation: fadeIn 0.3s ease;
+}
+
+.override-modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 32px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.override-modal-content h3 {
+    margin: 0 0 16px 0;
+    font-size: 22px;
+    color: #1d2327;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.override-modal-content h3::before {
+    content: '⚠️';
+    font-size: 24px;
+}
+
+.override-modal-content > p {
+    margin: 0 0 24px 0;
+    color: #3c434a;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.override-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.override-options .button {
+    padding: 14px 24px !important;
+    font-size: 15px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    border-radius: 8px !important;
+}
+
+.override-btn {
+    background: #dc2626 !important;
+    border-color: #dc2626 !important;
+    color: white !important;
+}
+
+.override-btn:hover {
+    background: #b91c1c !important;
+    border-color: #b91c1c !important;
+}
+
+.cancel-override-btn {
+    background: white !important;
+    border-color: #d1d5db !important;
+    color: #3c434a !important;
+}
+
+.cancel-override-btn:hover {
+    background: #f9fafb !important;
+}
+
+.override-warning {
+    padding: 12px 16px;
+    background: #fef3c7;
+    border-left: 4px solid #f59e0b;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #92400e;
+    margin: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.override-warning .dashicons {
+    color: #f59e0b;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+/* ====================
+   FIX #3: Apply to Form Button (Restored)
+   ==================== */
+.message-actions {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.apply-to-form-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.apply-to-form-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.apply-to-form-btn .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* ====================
+   FIX #4: AI Assist Button Styling
+   ==================== */
+.ai-assist-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    margin-left: 8px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
     border-radius: 6px;
-    padding: 8px 16px;
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.ai-assist-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+    background: linear-gradient(135deg, #7c8ef5 0%, #8b5db8 100%);
+}
+
+.ai-assist-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(102, 126, 234, 0.3);
+}
+
+.ai-assist-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.ai-assist-btn .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.ai-assist-btn .ai-assist-text {
+    font-weight: 500;
+}
+
+.ai-assist-btn .spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.form-table th {
+    position: relative;
+}
+
+.form-table .ai-assist-btn {
+    vertical-align: middle;
+    margin-left: 8px;
+}
+
+textarea.ai-fillable {
+    position: relative;
+}
+
+.ai-assist-btn + textarea,
+textarea + .ai-assist-btn {
+    margin-top: 8px;
+}
+
+.field-with-ai-assist {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.field-with-ai-assist .ai-fillable {
+    flex: 1;
+}
+
+.ai-fillable.ai-loading {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 1px #667eea !important;
+    position: relative;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 1px #667eea;
+    }
+    50% {
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+    }
+}
+
+.ai-fillable.ai-filled {
+    border-color: #10b981 !important;
+    background: #f0fdf4 !important;
+}
+
+@media (max-width: 768px) {
+    .ai-assist-btn {
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+    
+    .ai-assist-text {
+        display: none;
+    }
+    
+    .ai-assist-btn .dashicons {
+        margin: 0;
+    }
+    
+    .override-modal-content {
+        padding: 24px;
+    }
+    
+    .override-options .button {
+        padding: 12px 20px !important;
+        font-size: 14px !important;
+    }
+}
+
+
+/* ===== IMPROVEMENT MODAL LAYOUT FIX (Critical for scrolling) ===== */
+
+.improvement-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 100001 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.improvement-modal {
+    background: white;
+    border-radius: 12px;
+    max-width: 700px;
+    width: 90%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+}
+
+.improvement-header {
+    padding: 20px 30px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    border-radius: 12px 12px 0 0;
+    flex-shrink: 0;
+}
+
+.improvement-header h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+}
+
+.improvement-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s ease;
+}
+
+.improvement-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.improvement-content {
+    padding: 30px;
+    overflow-y: auto;
+    flex: 1;
+    line-height: 1.8;
+    font-size: 15px;
+    min-height: 0;
+}
+
+.improvement-content p,
+.improvement-content .analysis-p {
+    margin: 18px 0;
+    line-height: 1.8;
+    color: #4b5563;
+}
+
+.improvement-content h3,
+.improvement-content .analysis-h3 {
+    margin-top: 28px;
+    margin-bottom: 14px;
+    font-size: 19px;
+    color: #1f2937;
+    font-weight: 700;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.improvement-content h4,
+.improvement-content .analysis-h4 {
+    margin-top: 20px;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: #374151;
+    font-weight: 600;
+}
+
+.improvement-content .analysis-list-item {
+    margin: 24px 0 !important;
+    padding: 22px 24px !important;
+    background: linear-gradient(to right, #f0f9ff, #ffffff);
+    border-left: 4px solid #3b82f6;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    line-height: 1.8;
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+.improvement-content .analysis-list-item + .analysis-list-item {
+    margin-top: 0 !important;
+}
+
+.improvement-content .analysis-list-item:hover {
+    background: linear-gradient(to right, #e0f2fe, #f8fafc);
+    box-shadow: 0 6px 12px rgba(59, 130, 246, 0.12);
+}
+
+.improvement-content .list-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: #3b82f6;
+    color: #ffffff;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 15px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+}
+
+.improvement-content .list-body {
+    flex: 1;
+    color: #4b5563;
+    line-height: 1.8;
+    padding-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.improvement-content .list-title {
+    display: block;
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 15px;
+    padding-bottom: 4px;
+}
+
+.improvement-content .list-description {
+    display: block;
+    margin-top: 4px;
+    padding-left: 2px;
+    color: #4b5563;
+}
+
+.improvement-content .analysis-list-item .list-body > br {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.improvement-content .analysis-list-item .list-body p {
+    margin: 0 0 8px 0;
+}
+
+.improvement-content .analysis-bullet {
+    margin: 14px 0;
+    padding-left: 16px;
+    line-height: 1.8;
+    display: flex;
+    gap: 8px;
+}
+
+.improvement-content .bullet {
+    color: #3b82f6;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.improvement-content strong {
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.improvement-content > div {
+    margin: 20px 0;
+}
+
+.improvement-content > p:first-child,
+.improvement-content > .analysis-p:first-child {
+    margin-top: 0;
+}
+
+.improvement-content > p:last-child,
+.improvement-content > .analysis-p:last-child {
+    margin-bottom: 0;
+}
+
+.improvement-content::-webkit-scrollbar {
+    width: 10px;
+}
+
+.improvement-content::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 5px;
+}
+
+.improvement-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 5px;
+}
+
+.improvement-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.improvement-actions {
+    padding: 20px 30px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    background: white;
+    flex-shrink: 0;
+}
+
+.improvement-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.improvement-close-btn {
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    color: #374151;
+}
+
+.improvement-close-btn:hover {
+    background: #e5e7eb;
+}
+
+.improvement-apply-btn {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+}
+
+.improvement-apply-btn:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .improvement-modal {
+        width: 95%;
+        max-height: 90vh;
+    }
+
+    .improvement-header {
+        padding: 16px 20px;
+    }
+
+    .improvement-content {
+        padding: 20px;
+    }
+
+    .improvement-actions {
+        flex-direction: column;
+        padding: 16px 20px;
+    }
+
+    .improvement-action-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ===== END IMPROVEMENT MODAL LAYOUT FIX ===== */

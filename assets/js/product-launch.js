@@ -700,13 +700,18 @@ class EnhancedProductLaunchCoach {
     }
     
     showImprovementModal(analysisContent) {
+        // Remove any existing modal
         jQuery('.improvement-modal-overlay').remove();
-        
+
+        // Adjust chat modal z-index
         jQuery('#product-launch-modal').css('z-index', '99999');
-        
+
+        // Format the content
         const formattedContent = this.formatAnalysisContent(analysisContent);
-        console.log('[PL Coach] Formatted content for modal:', formattedContent.substring(0, 200)); // DEBUG
-        
+        console.log('[PL Coach] Showing improvement modal');
+        console.log('[PL Coach] Formatted content length:', formattedContent.length);
+
+        // Create modal HTML with explicit structure
         const modalHtml = `
             <div class="improvement-modal-overlay">
                 <div class="improvement-modal">
@@ -735,25 +740,34 @@ class EnhancedProductLaunchCoach {
                 </div>
             </div>
         `;
-        
+
+        // Append to body
         jQuery('body').append(modalHtml);
+
+        // Store current analysis
         this.currentAnalysis = analysisContent;
-        
+
+        // Bind close events
         jQuery('.improvement-close, .improvement-close-btn').on('click', () => {
+            console.log('[PL Coach] Closing improvement modal');
             jQuery('.improvement-modal-overlay').fadeOut(300, function() {
                 jQuery(this).remove();
                 jQuery('#product-launch-modal').css('z-index', '');
             });
         });
-        
+
+        // Bind apply button
         jQuery('.improvement-apply-btn').on('click', () => {
+            console.log('[PL Coach] Generate Improved Content clicked');
             jQuery('.improvement-modal-overlay').fadeOut(300, function() {
                 jQuery(this).remove();
                 jQuery('#product-launch-modal').css('z-index', '');
             });
-            
+
             this.requestImprovedContentFromAnalysis();
         });
+
+        console.log('[PL Coach] Modal HTML appended to body');
     }
     
     formatAnalysisContent(content) {
@@ -1086,6 +1100,7 @@ Generate the content now:`;
 
         return parsed;
     }
+
     // Helper method for regex escaping
     escapeRegex(str) {
         return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\                const leadingSplit = trimmedText.match(/^([^:\-\n]{1');
