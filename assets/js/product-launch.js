@@ -700,6 +700,8 @@ class EnhancedProductLaunchCoach {
     }
     
     showImprovementModal(analysisContent) {
+        console.log('[PL Coach] showImprovementModal called');
+
         // Remove any existing modal
         jQuery('.improvement-modal-overlay').remove();
 
@@ -708,8 +710,7 @@ class EnhancedProductLaunchCoach {
 
         // Format the content
         const formattedContent = this.formatAnalysisContent(analysisContent);
-        console.log('[PL Coach] Showing improvement modal');
-        console.log('[PL Coach] Formatted content length:', formattedContent.length);
+        console.log('[PL Coach] Modal will show formatted content');
 
         // Create modal HTML with explicit structure
         const modalHtml = `
@@ -722,11 +723,11 @@ class EnhancedProductLaunchCoach {
                         </h3>
                         <button class="improvement-close" aria-label="Close">&times;</button>
                     </div>
-                    
+                
                     <div class="improvement-content">
                         ${formattedContent}
                     </div>
-                    
+                
                     <div class="improvement-actions">
                         <button class="button improvement-action-btn improvement-close-btn">
                             <span class="dashicons dashicons-no-alt"></span>
@@ -743,13 +744,14 @@ class EnhancedProductLaunchCoach {
 
         // Append to body
         jQuery('body').append(modalHtml);
+        console.log('[PL Coach] Modal HTML appended');
 
         // Store current analysis
         this.currentAnalysis = analysisContent;
 
         // Bind close events
         jQuery('.improvement-close, .improvement-close-btn').on('click', () => {
-            console.log('[PL Coach] Closing improvement modal');
+            console.log('[PL Coach] Closing modal');
             jQuery('.improvement-modal-overlay').fadeOut(300, function() {
                 jQuery(this).remove();
                 jQuery('#product-launch-modal').css('z-index', '');
@@ -767,12 +769,17 @@ class EnhancedProductLaunchCoach {
             this.requestImprovedContentFromAnalysis();
         });
 
-        console.log('[PL Coach] Modal HTML appended to body');
+        console.log('[PL Coach] Event handlers bound');
     }
     
     formatAnalysisContent(content) {
+        console.log('[PL Coach] formatAnalysisContent called with:', content.substring(0, 100));
+
         // Format AI response markers first
         content = this.formatAIResponse(content);
+
+        // Fix headers that run into numbered lists by ensuring a newline between them
+        content = content.replace(/(###?\s+[^\n]+?)(\d+\.)/g, '$1\n$2');
 
         // Encourage clearer separation before numbered items
         content = content.replace(/(^|\n)(\d+)\.\s+/g, (match, prefix, number) => `${prefix}\n${number}. `);
@@ -783,9 +790,9 @@ class EnhancedProductLaunchCoach {
             .trim();
 
         let formatted = content
-            // Headers with better spacing
-            .replace(/###\s+(.+?)(\n|$)/g, '<h3 class="analysis-h3" style="margin-top: 24px; margin-bottom: 12px; font-size: 18px; color: #1f2937; font-weight: 700;">$1</h3>')
-            .replace(/##\s+(.+?)(\n|$)/g, '<h4 class="analysis-h4" style="margin-top: 20px; margin-bottom: 10px; font-size: 16px; color: #374151; font-weight: 600;">$1</h4>')
+            // Headers with better spacing - ensure they're followed by newlines
+            .replace(/###\s+(.+?)(\n|$)/g, '<h3 class="analysis-h3" style="margin-top: 24px; margin-bottom: 12px; font-size: 18px; color: #1f2937; font-weight: 700;">$1</h3>\n')
+            .replace(/##\s+(.+?)(\n|$)/g, '<h4 class="analysis-h4" style="margin-top: 20px; margin-bottom: 10px; font-size: 16px; color: #374151; font-weight: 600;">$1</h4>\n')
 
             // Bold and italic text enhancements
             .replace(/\*\*(.+?)\*\*/g, '<strong style="color: #1f2937; font-weight: 600;">$1</strong>')
@@ -848,9 +855,9 @@ class EnhancedProductLaunchCoach {
             '<div style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e5e7eb;"></div><strong style="font-size: 18px; color: #dc2626; display: block; margin-bottom: 16px;">💡 Suggestions for Improvement:</strong>'
         );
 
+        console.log('[PL Coach] formatAnalysisContent output:', formatted.substring(0, 200));
         return formatted.trim();
     }
-    
     // NEW METHOD: Generate actual content preview before showing modal
     requestImprovedContentFromAnalysis() {
         if (!this.currentAnalysis) {
@@ -1026,84 +1033,285 @@ Generate the content now:`;
     // NEW METHOD: Parse AI response into field => content map
     parseFieldContentResponse(aiResponse, fieldIds) {
         const parsed = {};
+        const seenContent = new Set();
+        const normalizeSignature = (text) => (text || '').replace(/\s+/g, ' ').trim().toLowerCase();
 
         console.log('[PL Coach] Parsing response for fields:', fieldIds);
 
-        this.formContext.forEach((fieldInfo, fieldId) => {
-            if (!fieldIds.includes(fieldId)) return;
+        const responseText = this.coerceToText(aiResponse).replace(/\r\n/g, '\n');
 
-            const fieldName = fieldInfo.label;
-            console.log('[PL Coach] Looking for content for:', fieldName);
+        let structuredResponse = null;
+        if (aiResponse && typeof aiResponse === 'object' && !Array.isArray(aiResponse)) {
+            structuredResponse = aiResponse;
+        } else {
+            try {
+                const maybeJson = JSON.parse(responseText);
+                if (maybeJson && typeof maybeJson === 'object') {
+                    structuredResponse = maybeJson;
+                }
+            } catch (e) {
+                // Not JSON - ignore
+            }
+        }
 
-            // Try multiple patterns with field name
-            const patterns = [
-                // Pattern 1: **Field Name**\ncontent
-                new RegExp(`\\*\\*${this.escapeRegex(fieldName)}\\*\\*[:\\s]*\\n([\\s\\S]{50,1500}?)(?=\\n\\*\\*|$)`, 'i'),
+        const structuredMap = structuredResponse ? this.flattenStructuredResponse(structuredResponse) : null;
 
-                // Pattern 2: **Field Name**: content
-                new RegExp(`\\*\\*${this.escapeRegex(fieldName)}\\*\\*:?\\s*([^\\n]{50,}(?:\\n(?!\\*\\*)[^\\n]+)*)`, 'i'),
+        fieldIds.forEach(fieldId => {
+            const fieldInfo = this.formContext.get(fieldId);
+            if (!fieldInfo) {
+                return;
+            }
 
-                // Pattern 3: Field Name (no asterisks)
-                new RegExp(`^${this.escapeRegex(fieldName)}[:\\s]+([\\s\\S]{50,1000}?)(?=\\n\\n|\\*\\*|$)`, 'im'),
+            const primaryLabel = fieldInfo?.label || this.humanizeFieldName(fieldId) || fieldId;
+            const labelCandidates = new Set([
+                primaryLabel,
+                fieldId,
+                fieldId.replace(/_/g, ' '),
+                this.humanizeFieldName(fieldId)
+            ]);
 
-                // Pattern 4: With underscores replaced
-                new RegExp(`\\*\\*${this.escapeRegex(fieldName.replace(/_/g, ' '))}\\*\\*[:\\s]*([\\s\\S]{50,1000}?)(?=\\n\\*\\*|$)`, 'i')
-            ];
+            if (fieldInfo?.label) {
+                labelCandidates.add(fieldInfo.label.replace(/_/g, ' '));
+                labelCandidates.add(this.humanizeFieldName(fieldInfo.label));
+            }
 
-            for (let i = 0; i < patterns.length; i++) {
-                try {
-                    const match = aiResponse.match(patterns[i]);
-                    if (match && match[1]) {
-                        let content = match[1].trim();
+            const candidateLabels = Array.from(labelCandidates)
+                .map(label => (label || '').toString().trim())
+                .filter(Boolean);
 
-                        // Clean up
-                        content = content
-                            .replace(/^\\*\\*|\\*\\*$/g, '')
-                            .replace(/^["']|["']$/g, '')
-                            .trim();
+            const normalizedCandidates = candidateLabels.map(label => this.normalizeFieldKey(label));
 
-                        if (content.length > 50) {
-                            parsed[fieldId] = content;
-                            console.log(`[PL Coach] ✓ Found content for ${fieldName}:`, content.substring(0, 100) + '...');
+            console.log('[PL Coach] Looking for content for:', primaryLabel, '| candidates:', candidateLabels);
+
+            // Attempt structured lookup first when available
+            if (structuredMap && !parsed[fieldId]) {
+                for (const candidateKey of normalizedCandidates) {
+                    if (structuredMap.has(candidateKey)) {
+                        const structuredValue = this.coerceToText(structuredMap.get(candidateKey)).trim();
+                        if (structuredValue.length > 20) {
+                            const signature = normalizeSignature(structuredValue);
+                            if (!signature || seenContent.has(signature)) {
+                                continue;
+                            }
+
+                            parsed[fieldId] = structuredValue;
+                            seenContent.add(signature);
+                            console.log(`[PL Coach] ✓ Found structured content for ${primaryLabel}:`, structuredValue.substring(0, 100) + '...');
                             break;
                         }
                     }
-                } catch (e) {
-                    console.warn(`[PL Coach] Pattern ${i+1} failed for ${fieldName}:`, e);
                 }
             }
 
+            if (parsed[fieldId]) {
+                return;
+            }
+
+            // Try multiple patterns with field name variations
+            const boundary = '(?=\\n{2,}|\\n\\*\\*|\\n\\d+\\.\\s|$)';
+            let foundContent = false;
+
+            for (const candidate of candidateLabels) {
+                if (foundContent) break;
+
+                const escapedLabel = this.escapeRegex(candidate);
+                const patterns = [
+                    new RegExp(`\\*\\*${escapedLabel}\\*\\*[:\\s]*\\n+([\\s\\S]{40,2000}?)${boundary}`, 'i'),
+                    new RegExp(`\\*\\*${escapedLabel}\\*\\*[:\\s-]+([\\s\\S]{40,2000}?)${boundary}`, 'i'),
+                    new RegExp(`^${escapedLabel}[:\\s-]+([\\s\\S]{40,2000}?)${boundary}`, 'im'),
+                    new RegExp(`^${escapedLabel}\\s*\\n+([\\s\\S]{40,2000}?)${boundary}`, 'im'),
+                    new RegExp(`\\d+\\.\\s*${escapedLabel}[:\\s-]+([\\s\\S]{40,2000}?)${boundary}`, 'i')
+                ];
+
+                for (let i = 0; i < patterns.length; i++) {
+                    try {
+                        const match = responseText.match(patterns[i]);
+                        if (match && match[1]) {
+                            let matchedContent = match[1]
+                                .replace(new RegExp(`^${escapedLabel}[:\\s-]*`, 'i'), '')
+                                .replace(/^\d+\.\s*/, '')
+                                .replace(/^[-•]\s*/, '')
+                                .replace(/^"|"$/g, '')
+                                .trim();
+
+                            if (matchedContent.length > 40) {
+                                const signature = normalizeSignature(matchedContent);
+                                if (signature && !seenContent.has(signature)) {
+                                    parsed[fieldId] = matchedContent;
+                                    seenContent.add(signature);
+                                    console.log(`[PL Coach] ✓ Found content for ${primaryLabel}:`, matchedContent.substring(0, 100) + '...');
+                                    foundContent = true;
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.warn(`[PL Coach] Pattern ${i + 1} failed for ${primaryLabel} (${candidate}):`, e);
+                    }
+                }
+            }
+
+            if (parsed[fieldId]) {
+                return;
+            }
+
             // If still no match, try paragraph extraction
-            if (!parsed[fieldId]) {
-                console.warn(`[PL Coach] No direct match for ${fieldName}, trying paragraph extraction`);
+            console.warn(`[PL Coach] No direct match for ${primaryLabel}, trying paragraph extraction`);
 
-                const paragraphs = aiResponse
-                    .split(/\n\n+/)
-                    .map(p => p.trim())
-                    .filter(p => p.length > 50 && !p.startsWith('#') && !p.match(/^\\*\\*.*?\\*\\*$/));
+            const paragraphs = responseText
+                .split(/\n{2,}/)
+                .map(p => p.trim())
+                .filter(p => p.length > 40 && !p.startsWith('#'))
+                .map((text, index) => ({ text, index, signature: normalizeSignature(text) }))
+                .filter(item => item.text.length > 0);
 
+            let matchedParagraphEntry = null;
+            for (const entry of paragraphs) {
+                if (seenContent.has(entry.signature)) {
+                    continue;
+                }
+
+                if (candidateLabels.some(label => new RegExp(`\\b${this.escapeRegex(label)}\\b`, 'i').test(entry.text))) {
+                    matchedParagraphEntry = entry;
+                    break;
+                }
+            }
+
+            if (!matchedParagraphEntry && paragraphs.length) {
+                const availableParagraphs = paragraphs.filter(entry => !seenContent.has(entry.signature));
                 const fieldIndex = fieldIds.indexOf(fieldId);
-                if (fieldIndex >= 0 && fieldIndex < paragraphs.length) {
-                    parsed[fieldId] = paragraphs[fieldIndex]
-                        .replace(/^\\*\\*.*?\\*\\*:?\\s*/, '')
-                        .trim();
-                    console.log(`[PL Coach] ✓ Extracted paragraph ${fieldIndex} for ${fieldName}`);
+                if (availableParagraphs.length) {
+                    matchedParagraphEntry = availableParagraphs[fieldIndex] || availableParagraphs[availableParagraphs.length - 1];
+                }
+            }
+
+            if (matchedParagraphEntry) {
+                let cleanedParagraph = matchedParagraphEntry.text;
+                candidateLabels.forEach(label => {
+                    cleanedParagraph = cleanedParagraph.replace(new RegExp(`^${this.escapeRegex(label)}[:\\s-]*`, 'i'), '');
+                });
+                cleanedParagraph = cleanedParagraph
+                    .replace(/^\d+\.\s*/, '')
+                    .replace(/^[-•]\s*/, '')
+                    .trim();
+
+                if (cleanedParagraph.length > 40) {
+                    const signature = normalizeSignature(cleanedParagraph);
+                    if (!seenContent.has(signature)) {
+                        parsed[fieldId] = cleanedParagraph;
+                        seenContent.add(signature);
+                        console.log(`[PL Coach] ✓ Extracted paragraph for ${primaryLabel}:`, cleanedParagraph.substring(0, 100) + '...');
+                    }
                 }
             }
 
             // Final fallback - generate placeholder
             if (!parsed[fieldId]) {
-                parsed[fieldId] = `[Content for ${fieldName} - click AI Assist button to generate]`;
-                console.warn(`[PL Coach] ✗ Could not extract content for ${fieldName}`);
+                parsed[fieldId] = `[Content for ${primaryLabel} - click AI Assist button to generate]`;
+                console.warn(`[PL Coach] ✗ Could not extract content for ${primaryLabel}`);
             }
         });
 
         return parsed;
     }
 
+    coerceToText(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        if (typeof value === 'string') {
+            return value;
+        }
+
+        if (Array.isArray(value)) {
+            return value.map(item => this.coerceToText(item)).filter(Boolean).join('\n');
+        }
+
+        if (typeof value === 'object') {
+            if (typeof value.text === 'string') {
+                return value.text;
+            }
+
+            if (typeof value.content === 'string') {
+                return value.content;
+            }
+
+            if (Array.isArray(value.content)) {
+                return value.content.map(part => this.coerceToText(part)).filter(Boolean).join('\n');
+            }
+
+            if (typeof value.message === 'string') {
+                return value.message;
+            }
+
+            if (typeof value.response === 'string') {
+                return value.response;
+            }
+
+            if (Array.isArray(value.choices)) {
+                return value.choices
+                    .map(choice => this.coerceToText(choice.message?.content || choice.text || choice))
+                    .filter(Boolean)
+                    .join('\n');
+            }
+
+            try {
+                return JSON.stringify(value);
+            } catch (e) {
+                return String(value);
+            }
+        }
+
+        return String(value);
+    }
+
+    flattenStructuredResponse(structured) {
+        const map = new Map();
+        const stack = [structured];
+
+        while (stack.length) {
+            const current = stack.pop();
+            if (!current) continue;
+
+            if (Array.isArray(current)) {
+                current.forEach(item => stack.push(item));
+                continue;
+            }
+
+            if (typeof current !== 'object') {
+                continue;
+            }
+
+            Object.entries(current).forEach(([key, value]) => {
+                if (!key) return;
+                const normalizedKey = this.normalizeFieldKey(key);
+
+                if (typeof value === 'string') {
+                    if (!map.has(normalizedKey)) {
+                        map.set(normalizedKey, value.trim());
+                    }
+                } else if (value && typeof value === 'object') {
+                    stack.push(value);
+                }
+            });
+        }
+
+        return map;
+    }
+
+    normalizeFieldKey(value) {
+        return String(value || '')
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/_{2,}/g, '_')
+            .replace(/^_|_$/g, '');
+    }
+
     // Helper method for regex escaping
     escapeRegex(str) {
-        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\                const leadingSplit = trimmedText.match(/^([^:\-\n]{1');
+        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
     
     // MODIFIED: showOverrideConfirmation now accepts generated content
