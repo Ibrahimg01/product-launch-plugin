@@ -828,7 +828,7 @@ class EnhancedProductLaunchCoach {
             })
 
             // Bullet points with better spacing
-            .replace(/^[-•]\s+(.+?)$/gm, '<div class="analysis-bullet" style="margin: 12px 0; padding-left: 12px; line-height: 1.6;"><span class="bullet" style="color: #3b82f6; margin-right: 8px; font-weight: bold;">•</span><span style="color: #374151;">$1</span></div>')
+            .replace(/^[-•]\s+(.+?)$/gm, '<div class="analysis-bullet" style="margin: 14px 0; padding-left: 16px; line-height: 1.8;"><span class="bullet" style="color: #3b82f6; margin-right: 8px; font-weight: bold;">•</span><span style="color: #374151;">$1</span></div>')
 
             // Paragraphs with proper spacing
             .replace(/\n\n/g, '</p><p class="analysis-p" style="margin: 18px 0; line-height: 1.8; color: #4b5563;">')
@@ -1100,6 +1100,7 @@ Generate the content now:`;
 
         return parsed;
     }
+
     // Helper method for regex escaping
     escapeRegex(str) {
         return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
