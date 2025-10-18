@@ -1034,7 +1034,7 @@ Generate the content now:`;
     parseFieldContentResponse(aiResponse, fieldIds) {
         const parsed = {};
         const seenContent = new Set();
-        const usedParagraphIndices = new Set();
+        const usedParagraphIndices = new Set(); // Track paragraph positions already consumed
         const normalizeSignature = (text) => (text || '').replace(/\s+/g, ' ').trim().toLowerCase();
 
         console.log('[PL Coach] Parsing response for fields:', fieldIds);
