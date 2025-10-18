@@ -1,6 +1,7 @@
-/*! PL Selective Field Replacement Override - v2.3.53 (DOM Read Fix) */
+/*! PL Selective Field Replacement Override - v2.3.56 (Field-Specific Replacements) */
 (function () {
   if (typeof window === 'undefined') { return; }
+  var $ = window.jQuery;
   // --- Enhanced Modal Markup Builder with Before/After Preview ---
   function pl_buildSelectiveModalHtml(fields) {
     var total = fields.length;
@@ -21,6 +22,13 @@
             '<span class="pl-count" data-selected-count>0 of ' + String(total) + ' selected</span>' +
         '</div>' +
         '<div class="pl-list">';
+
+    var escapeHtml = function(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    };
 
     for (var i=0;i<fields.length;i++) {
       var fieldId = fields[i];
@@ -113,9 +121,9 @@
       var newDisplay = newValue ? formatMarkers(newPreview.replace(/</g,'&lt;')) : '<em>AI-generated</em>';
 
       html += '' +
-        '<div class="pl-item-wrapper">' +
+        '<div class="pl-item-wrapper field-selection-item" data-field-id="' + String(fieldId).replace(/\"/g,'&quot;') + '">' +
           '<label class="pl-item">' +
-            '<input type="checkbox" class="pl-check" data-field-id="' + String(fieldId).replace(/\"/g,'&quot;') + '" checked> ' +
+            '<input type="checkbox" class="pl-check" value="' + String(fieldId).replace(/\"/g,'&quot;') + '" data-field-id="' + String(fieldId).replace(/\"/g,'&quot;') + '" checked> ' +
             '<div class="pl-item-content">' +
               '<div class="pl-item-name">' + String(name).replace(/</g,'&lt;') + '</div>' +
               '<div class="pl-change-preview">' +
@@ -136,6 +144,10 @@
       }
 
       html += '' +
+              '<div class="pl-hidden-values" aria-hidden="true" style="display:none;">' +
+                '<span class="current-value">' + escapeHtml(currentValue || '') + '</span>' +
+                '<span class="new-value">' + escapeHtml(newValue || '') + '</span>' +
+              '</div>' +
             '</div>' +
           '</label>' +
         '</div>';
@@ -146,7 +158,7 @@
         '<div class="pl-warning">⚠ Selected fields will be replaced with AI-generated content.</div>' +
         '<div class="pl-actions">' +
             '<button type="button" class="pl-btn ghost" data-action="cancel">Cancel</button>' +
-            '<button type="button" class="pl-btn primary" data-action="replace" disabled>Replace Selected</button>' +
+            '<button type="button" class="pl-btn primary replace-selected-fields" disabled>Replace Selected</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -349,20 +361,6 @@
         }
 
         // Replace
-        if (t.getAttribute('data-action') === 'replace') {
-          var selectedFields = [];
-          for (var k=0;k<checkboxes.length;k++){
-            var cb = checkboxes[k];
-            if (cb.checked) { selectedFields.push(cb.getAttribute('data-field-id')); }
-          }
-          var coach = window.productLaunchCoach;
-          if (coach && coach.pendingGeneratedContent) {
-            coach.fillFieldsWithGeneratedContent(selectedFields, coach.pendingGeneratedContent);
-          } else if (coach && coach.currentAnalysis) {
-            coach.fillFieldsWithAnalysis(selectedFields);
-          }
-          if (wrap && wrap.parentNode) { wrap.parentNode.removeChild(wrap); }
-        }
       });
 
       // Change updates
@@ -406,5 +404,121 @@
     document.addEventListener('DOMContentLoaded', installOverride);
   } else {
     installOverride();
+  }
+
+  if ($ && typeof $.fn === 'object') {
+    $(document).on('click', '.replace-selected-fields', function(e) {
+      e.preventDefault();
+
+      var $button = $(this);
+      var $modal = $button.closest('.pl-selective-modal');
+      if ($modal.length === 0) {
+        $modal = $button.closest('.pl-selective-overlay');
+      }
+      var selectedFields = [];
+
+      $modal.find('input[type="checkbox"]:checked').each(function() {
+        var $checkbox = $(this);
+        var fieldId = $checkbox.val() || $checkbox.attr('data-field-id');
+        var $fieldContainer = $checkbox.closest('.field-selection-item');
+        var currentValue = $fieldContainer.find('.current-value').text();
+        var newValue = $fieldContainer.find('.new-value').text();
+        var fieldLabel = $fieldContainer.find('label').first().text().replace(/^\s*\n\s*/, '');
+
+        selectedFields.push({
+          id: fieldId,
+          label: fieldLabel,
+          current: currentValue,
+          suggested: newValue,
+          element: $('[name="' + fieldId + '"], [id="' + fieldId + '"]').first()
+        });
+      });
+
+      if (selectedFields.length === 0) {
+        alert('Please select at least one field to replace.');
+        return;
+      }
+
+      $button.prop('disabled', true).text('Replacing fields...');
+
+      var successCount = 0;
+      var errorFields = [];
+
+      selectedFields.forEach(function(field) {
+        try {
+          var $targetField = field.element;
+
+          if (!$targetField || $targetField.length === 0) {
+            console.warn('Field not found:', field.id);
+            errorFields.push(field.label);
+            return;
+          }
+
+          if ($targetField.is('textarea')) {
+            $targetField.val(field.suggested).trigger('change');
+          } else if ($targetField.is('input[type="text"], input[type="search"], input[type="url"], input[type="email"], input[type="tel"]')) {
+            $targetField.val(field.suggested).trigger('change');
+          } else if ($targetField.is('select')) {
+            $targetField.val(field.suggested).trigger('change');
+          } else if ($targetField.prop('contentEditable') === 'true') {
+            $targetField.html(field.suggested).trigger('input');
+          } else {
+            $targetField.val(field.suggested).trigger('change');
+          }
+
+          $targetField.addClass('field-just-updated');
+          setTimeout(function() {
+            $targetField.removeClass('field-just-updated');
+          }, 2000);
+
+          successCount++;
+        } catch (error) {
+          console.error('Error updating field:', field.id, error);
+          errorFields.push(field.label);
+        }
+      });
+
+      var $overlay = $button.closest('.pl-selective-overlay');
+      if ($overlay.length) {
+        $overlay.fadeOut(300, function() {
+          $(this).remove();
+        });
+      }
+
+      if (errorFields.length > 0) {
+        alert('Updated ' + successCount + ' fields successfully.\n\nFailed to update: ' + errorFields.join(', '));
+      } else {
+        showSuccessNotification('Successfully updated ' + successCount + ' field' + (successCount !== 1 ? 's' : ''));
+      }
+    });
+  }
+
+  function showSuccessNotification(message) {
+    var $ = window.jQuery;
+    if (!$ || typeof $.fn !== 'object') {
+      alert(message);
+      return;
+    }
+
+    var $notification = $('<div class="pl-success-notification">' + message + '</div>');
+    $('body').append($notification);
+
+    setTimeout(function() {
+      $notification.addClass('show');
+    }, 100);
+
+    setTimeout(function() {
+      $notification.removeClass('show');
+      setTimeout(function() {
+        $notification.remove();
+      }, 300);
+    }, 3000);
+  }
+
+  if (!document.getElementById('pl-selective-style')) {
+    var style = document.createElement('style');
+    style.id = 'pl-selective-style';
+    style.textContent = '\n    .field-just-updated {\n        animation: fieldUpdatePulse 0.5s ease-in-out;\n        border-color: #46b450 !important;\n        box-shadow: 0 0 0 1px #46b450 !important;\n    }\n    \n    @keyframes fieldUpdatePulse {\n        0%, 100% { \n            transform: scale(1); \n            opacity: 1;\n        }\n        50% { \n            transform: scale(1.02); \n            opacity: 0.9;\n        }\n    }\n    \n    .pl-success-notification {\n        position: fixed;\n        top: 32px;\n        right: 20px;\n        background: #46b450;\n        color: white;\n        padding: 15px 20px;\n        border-radius: 4px;\n        box-shadow: 0 2px 10px rgba(0,0,0,0.2);\n        z-index: 999999;\n        opacity: 0;\n        transform: translateY(-20px);\n        transition: all 0.3s ease;\n    }\n    \n    .pl-success-notification.show {\n        opacity: 1;\n        transform: translateY(0);\n    }\n  ';
+    document.head.appendChild(style);
   }
 })();
