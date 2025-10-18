@@ -169,6 +169,9 @@ if (function_exists('pl_migrate_to_enhanced_memory')) {
 
 
 define('PL_PLUGIN_VERSION', '2.3.56');
+if (!defined('PL_VERSION')) {
+    define('PL_VERSION', PL_PLUGIN_VERSION);
+}
 define('PL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -181,6 +184,8 @@ require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-api.p
 require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-quota.php';
 require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-access.php';
 require_once PL_PLUGIN_DIR . 'includes/idea-validation/validation-functions.php';
+require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-admin.php';
+require_once PL_PLUGIN_DIR . 'includes/idea-validation/validation-ajax.php';
 
 /**
  * Enhanced activation with proper database schema
