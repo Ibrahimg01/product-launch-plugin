@@ -188,6 +188,8 @@ require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-admin
 require_once PL_PLUGIN_DIR . 'includes/idea-validation/validation-ajax.php';
 // Load frontend validation handler
 require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-frontend.php';
+// Load ideas library
+require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-ideas-library.php';
 
 /**
  * Enhanced activation with proper database schema
@@ -199,11 +201,13 @@ function pl_activate($network_wide) {
             switch_to_blog($blog_id);
             pl_create_tables();
             pl_create_validation_tables();
+            pl_create_projects_tables();
             restore_current_blog();
         }
     } else {
         pl_create_tables();
         pl_create_validation_tables();
+        pl_create_projects_tables();
     }
 }
 register_activation_hook(__FILE__, 'pl_activate');
@@ -292,6 +296,53 @@ function pl_create_validation_tables() {
     dbDelta($sql_validations);
     dbDelta($sql_enrichment);
     dbDelta($sql_quota);
+}
+
+/**
+ * Create projects and phase data tables
+ */
+function pl_create_projects_tables() {
+    global $wpdb;
+    $charset_collate = $wpdb->get_charset_collate();
+
+    $table_projects = $wpdb->prefix . 'pl_projects';
+    $sql_projects = "CREATE TABLE IF NOT EXISTS `$table_projects` (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id BIGINT UNSIGNED NOT NULL,
+        site_id BIGINT UNSIGNED NOT NULL DEFAULT 1,
+        project_name VARCHAR(255) NOT NULL,
+        project_description TEXT NULL,
+        validation_score INT DEFAULT 0,
+        validation_external_id VARCHAR(255) NULL,
+        status VARCHAR(50) DEFAULT 'active',
+        current_phase INT DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY user_site (user_id, site_id),
+        KEY status (status),
+        KEY validation_id (validation_external_id)
+    ) $charset_collate;";
+
+    $table_phase_data = $wpdb->prefix . 'pl_phase_data';
+    $sql_phase_data = "CREATE TABLE IF NOT EXISTS `$table_phase_data` (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        project_id BIGINT UNSIGNED NOT NULL,
+        phase_number INT NOT NULL,
+        phase_name VARCHAR(100) NOT NULL,
+        phase_data LONGTEXT NULL,
+        status VARCHAR(50) DEFAULT 'pending',
+        completed_at DATETIME NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY project_phase (project_id, phase_number),
+        KEY status (status)
+    ) $charset_collate;";
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+    dbDelta($sql_projects);
+    dbDelta($sql_phase_data);
 }
 
 /**
