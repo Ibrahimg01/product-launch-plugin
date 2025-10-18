@@ -5,7 +5,7 @@ else { window.__PL_FILE_GUARDS['assets/js/product-launch.js'] = 1;
 
 /*
  * Product Launch Plugin - Complete Fixed JavaScript
- * Version 2.3.53 - All Conflicts Resolved
+ * Version 2.3.56 - Field-Specific AI Suggestions Fix
  * 
  * FIXES APPLIED:
  * - Bug #1: Modal z-index conflict (modal behind chat)
@@ -14,6 +14,8 @@ else { window.__PL_FILE_GUARDS['assets/js/product-launch.js'] = 1;
  * - Bug #4: AI Assist button styling
  * - Bug #5: Generate actual content preview before showing selective modal
  * - Bug #6: Resolved all parsing conflicts with duplicate detection
+ * - Bug #7: Fixed AI suggestions applying same text to all fields
+ * - Bug #8: Enhanced field parsing with multiple pattern matching
  */
 
 class EnhancedProductLaunchCoach {
@@ -28,7 +30,7 @@ class EnhancedProductLaunchCoach {
         this.pendingRequest = null;
         this.autoSaveTimeout = null;
         this.lastActionWasAnalysis = false;
-        this.pendingGeneratedContent = null; // NEW: Store pre-generated content
+        this.pendingGeneratedContent = null;
         
         this.init();
     }
@@ -40,10 +42,6 @@ class EnhancedProductLaunchCoach {
         this.loadPreviousContext();
     }
 
-    /**
-     * Format AI response markers to HTML
-     * Converts ⟦b⟧ to <strong>, ⟦i⟧ to <em>, etc.
-     */
     formatAIResponse(text) {
         if (!text || typeof text !== 'string') return text;
 
@@ -57,25 +55,21 @@ class EnhancedProductLaunchCoach {
     }
     
     bindEvents() {
-        // AI Coaching session start
         jQuery(document).on('click', '.start-ai-coaching', (e) => {
             e.preventDefault();
             this.startCoachingSession(jQuery(e.currentTarget).data('phase'));
         });
         
-        // Modal controls
         jQuery(document).on('click', '.modal-close', (e) => {
             e.preventDefault();
             this.closeModal();
         });
         
-        // Chat form submission
         jQuery(document).on('submit', '.chat-form', (e) => {
             e.preventDefault();
             this.sendMessage();
         });
         
-        // Enter key in textarea
         jQuery(document).on('keypress', '.chat-textarea', (e) => {
             if (e.which === 13 && !e.shiftKey) {
                 e.preventDefault();
@@ -83,27 +77,23 @@ class EnhancedProductLaunchCoach {
             }
         });
         
-        // AI field assistance
         jQuery(document).on('click', '.ai-assist-btn', (e) => {
             e.preventDefault();
             const fieldId = jQuery(e.currentTarget).data('field');
             this.requestFieldAssistance(fieldId);
         });
         
-        // Form field monitoring
         jQuery(document).on('input change', '.ai-fillable', (e) => {
             this.updateFormContext();
             this.autoSaveProgress();
         });
         
-        // Quick actions
         jQuery(document).on('click', '.quick-action-btn', (e) => {
             e.preventDefault();
             const action = jQuery(e.currentTarget).data('action');
             this.handleQuickAction(action);
         });
         
-        // Apply to Form button
         jQuery(document).on('click', '.apply-to-form-btn', (e) => {
             e.preventDefault();
             const $message = jQuery(e.currentTarget).closest('.message');
@@ -111,20 +101,17 @@ class EnhancedProductLaunchCoach {
             this.applyMessageToForm(messageText);
         });
         
-        // API Test
         jQuery(document).on('click', '.test-api-connection', (e) => {
             e.preventDefault();
             this.testAPIConnection();
         });
         
-        // Close modal on backdrop
         jQuery(document).on('click', '#product-launch-modal', (e) => {
             if (e.target === e.currentTarget) {
                 this.closeModal();
             }
         });
         
-        // Escape key
         jQuery(document).on('keydown', (e) => {
             if (e.key === 'Escape') {
                 this.closeModal();
@@ -621,16 +608,13 @@ class EnhancedProductLaunchCoach {
     }
     
     formatMessage(message) {
-        // First, format AI response markers
         message = this.formatAIResponse(message);
 
-        // Then apply additional formatting
         return message
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
             .replace(/`(.*?)`/g, '<code>$1</code>')
             .replace(/^(.*)$/gm, function(match) {
-                // Don't wrap if already wrapped
                 if (match.startsWith('<') || match === '') return match;
                 return '<p>' + match + '</p>';
             })
@@ -703,17 +687,12 @@ class EnhancedProductLaunchCoach {
     showImprovementModal(analysisContent) {
         console.log('[PL Coach] showImprovementModal called');
 
-        // Remove any existing modal
         jQuery('.improvement-modal-overlay').remove();
-
-        // Adjust chat modal z-index
         jQuery('#product-launch-modal').css('z-index', '99999');
 
-        // Format the content
         const formattedContent = this.formatAnalysisContent(analysisContent);
         console.log('[PL Coach] Modal will show formatted content');
 
-        // Create modal HTML with explicit structure
         const modalHtml = `
             <div class="improvement-modal-overlay">
                 <div class="improvement-modal">
@@ -743,14 +722,11 @@ class EnhancedProductLaunchCoach {
             </div>
         `;
 
-        // Append to body
         jQuery('body').append(modalHtml);
         console.log('[PL Coach] Modal HTML appended');
 
-        // Store current analysis
         this.currentAnalysis = analysisContent;
 
-        // Bind close events
         jQuery('.improvement-close, .improvement-close-btn').on('click', () => {
             console.log('[PL Coach] Closing modal');
             jQuery('.improvement-modal-overlay').fadeOut(300, function() {
@@ -759,7 +735,6 @@ class EnhancedProductLaunchCoach {
             });
         });
 
-        // Bind apply button
         jQuery('.improvement-apply-btn').on('click', () => {
             console.log('[PL Coach] Generate Improved Content clicked');
             jQuery('.improvement-modal-overlay').fadeOut(300, function() {
@@ -776,13 +751,8 @@ class EnhancedProductLaunchCoach {
     formatAnalysisContent(content) {
         console.log('[PL Coach] formatAnalysisContent called with:', content.substring(0, 100));
 
-        // Format AI response markers first
         content = this.formatAIResponse(content);
-
-        // Fix headers that run into numbered lists by ensuring a newline between them
         content = content.replace(/(###?\s+[^\n]+?)(\d+\.)/g, '$1\n$2');
-
-        // Encourage clearer separation before numbered items
         content = content.replace(/(^|\n)(\d+)\.\s+/g, (match, prefix, number) => `${prefix}\n${number}. `);
 
         const formatListText = (value) => value
@@ -791,15 +761,10 @@ class EnhancedProductLaunchCoach {
             .trim();
 
         let formatted = content
-            // Headers with better spacing - ensure they're followed by newlines
             .replace(/###\s+(.+?)(\n|$)/g, '<h3 class="analysis-h3" style="margin-top: 24px; margin-bottom: 12px; font-size: 18px; color: #1f2937; font-weight: 700;">$1</h3>\n')
             .replace(/##\s+(.+?)(\n|$)/g, '<h4 class="analysis-h4" style="margin-top: 20px; margin-bottom: 10px; font-size: 16px; color: #374151; font-weight: 600;">$1</h4>\n')
-
-            // Bold and italic text enhancements
             .replace(/\*\*(.+?)\*\*/g, '<strong style="color: #1f2937; font-weight: 600;">$1</strong>')
             .replace(/\*(.+?)\*/g, '<em>$1</em>')
-
-            // Numbered lists with better spacing and structure
             .replace(/(\d+)\.\s+([\s\S]*?)(?=(\n\d+\.\s)|$)/g, (match, number, text) => {
                 const trimmedText = text.trim();
                 if (!trimmedText) {
@@ -834,23 +799,15 @@ class EnhancedProductLaunchCoach {
 
                 return `<div class="analysis-list-item"><span class="list-number">${number}</span><div class="list-body">${titleHtml || ''}${descriptionHtml || ''}</div></div>`;
             })
-
-            // Bullet points with better spacing
             .replace(/^[-•]\s+(.+?)$/gm, '<div class="analysis-bullet" style="margin: 14px 0; padding-left: 16px; line-height: 1.8;"><span class="bullet" style="color: #3b82f6; margin-right: 8px; font-weight: bold;">•</span><span style="color: #374151;">$1</span></div>')
-
-            // Paragraphs with proper spacing
             .replace(/\n\n/g, '</p><p class="analysis-p" style="margin: 18px 0; line-height: 1.8; color: #4b5563;">')
             .replace(/\n/g, '<br>');
 
-        // Wrap in paragraph if not already wrapped
         if (!formatted.match(/^<[h3|h4|div|p]/)) {
             formatted = '<p class="analysis-p" style="margin: 18px 0; line-height: 1.8; color: #4b5563;">' + formatted + '</p>';
         }
 
-        // Remove empty paragraphs
         formatted = formatted.replace(/<p class="analysis-p"[^>]*><\/p>/g, '');
-
-        // Add section separator styling for Suggestions block
         formatted = formatted.replace(
             /Suggestions for Improvement:/gi,
             '<div style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e5e7eb;"></div><strong style="font-size: 18px; color: #dc2626; display: block; margin-bottom: 16px;">💡 Suggestions for Improvement:</strong>'
@@ -860,7 +817,6 @@ class EnhancedProductLaunchCoach {
         return formatted.trim();
     }
     
-    // NEW METHOD: Generate actual content preview before showing modal
     requestImprovedContentFromAnalysis() {
         if (!this.currentAnalysis) {
             this.showNotification('No analysis available. Please analyze first.', 'warning');
@@ -952,13 +908,11 @@ class EnhancedProductLaunchCoach {
         });
     }
     
-    // NEW METHOD: Generate field-specific content from analysis
     generateFieldContentFromAnalysis(fieldIds, callback) {
         const context = this.gatherFormContext();
 
         console.log('[PL Coach] Generating content for fields:', fieldIds);
 
-        // Build field descriptions with existing context
         const fieldDescriptions = fieldIds.map(fieldId => {
             const fieldInfo = this.formContext.get(fieldId);
             const label = fieldInfo ? fieldInfo.label : fieldId;
@@ -966,7 +920,6 @@ class EnhancedProductLaunchCoach {
             return `- **${label}**: ${currentValue ? 'Currently has: "' + currentValue.substring(0, 100) + '..."' : 'EMPTY - needs content'}`;
         }).join('\n');
 
-        // Build existing context summary
         const existingContext = Object.entries(context)
             .filter(([key, val]) => val && val.length > 20)
             .map(([key, val]) => `**${key.replace(/_/g, ' ')}:** ${val.substring(0, 200)}`)
@@ -1015,7 +968,6 @@ Generate the content now:`;
                 if (response.success) {
                     console.log('[PL Coach] AI Response received:', response.data);
 
-                    // Parse the structured response
                     const parsedContent = this.parseFieldContentResponse(response.data, fieldIds);
                     console.log('[PL Coach] Parsed content:', parsedContent);
 
@@ -1032,18 +984,16 @@ Generate the content now:`;
         });
     }
     
-    // NEW METHOD: Parse AI response into field => content map
     parseFieldContentResponse(aiResponse, fieldIds) {
         const parsed = {};
         const seenContent = new Set();
-        const usedParagraphIndices = new Set(); // Track paragraph positions already consumed
+        const usedParagraphIndices = new Set();
         const normalizeSignature = (text) => (text || '').replace(/\s+/g, ' ').trim().toLowerCase();
 
         console.log('[PL Coach] Parsing response for fields:', fieldIds);
 
         const responseText = this.coerceToText(aiResponse).replace(/\r\n/g, '\n');
 
-        // Try to parse as structured JSON first
         let structuredResponse = null;
         if (aiResponse && typeof aiResponse === 'object' && !Array.isArray(aiResponse)) {
             structuredResponse = aiResponse;
@@ -1054,7 +1004,7 @@ Generate the content now:`;
                     structuredResponse = maybeJson;
                 }
             } catch (e) {
-                // Not JSON - ignore
+                // Not JSON
             }
         }
 
@@ -1087,7 +1037,6 @@ Generate the content now:`;
 
             console.log('[PL Coach] Looking for content for:', primaryLabel, '| candidates:', candidateLabels);
 
-            // Attempt structured lookup first when available
             if (structuredMap && !parsed[fieldId]) {
                 for (const candidateKey of normalizedCandidates) {
                     if (structuredMap.has(candidateKey)) {
@@ -1111,7 +1060,6 @@ Generate the content now:`;
                 return;
             }
 
-            // Try multiple patterns with field name variations
             const boundary = '(?=\\n{2,}|\\n\\*\\*|\\n\\d+\\.\\s|$)';
             let foundContent = false;
 
@@ -1159,7 +1107,6 @@ Generate the content now:`;
                 return;
             }
 
-            // If still no match, try paragraph extraction
             console.warn(`[PL Coach] No direct match for ${primaryLabel}, trying paragraph extraction`);
 
             const paragraphs = responseText
@@ -1213,7 +1160,6 @@ Generate the content now:`;
                 }
             }
 
-            // Final fallback - generate placeholder
             if (!parsed[fieldId]) {
                 parsed[fieldId] = `[Content for ${primaryLabel} - click AI Assist button to generate]`;
                 console.warn(`[PL Coach] ✗ Could not extract content for ${primaryLabel}`);
@@ -1317,14 +1263,11 @@ Generate the content now:`;
             .replace(/^_|_$/g, '');
     }
 
-    // Helper method for regex escaping
     escapeRegex(str) {
-        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\                const leadingSplit = trimmedText.match(/^([^:\-\n]{1,120}?)(?:\s*[:\-–—]\s+)([\s\S]*)');
     }
     
-    // MODIFIED: showOverrideConfirmation now accepts generated content
     showOverrideConfirmation(filledFields, generatedContent = null) {
-        // Store the generated content so the modal can access it
         this.pendingGeneratedContent = generatedContent;
         
         const fieldList = filledFields.map(fieldId => {
@@ -1369,7 +1312,6 @@ Generate the content now:`;
         });
     }
     
-    // NEW METHOD: Fill fields with pre-generated content
     fillFieldsWithGeneratedContent(fieldIds, generatedContent) {
         if (!generatedContent) {
             this.showNotification('No content available to fill fields', 'error');
@@ -1391,7 +1333,6 @@ Generate the content now:`;
             this.immediateFormSave();
         }
         
-        // Clear pending content
         this.pendingGeneratedContent = null;
     }
     
@@ -1603,7 +1544,10 @@ Generate the content now:`;
     }
 }
 
-// Enhanced "Fill Missing Fields" handler with better field detection
+/**
+ * ENHANCED "Fill Missing Fields" handler - CONSOLIDATED VERSION
+ * Fixes all parsing conflicts and field detection issues
+ */
 jQuery(document).on('click', '.fill-missing-fields, button:contains("Fill Missing Fields")', function(e) {
     e.preventDefault();
     console.log('[PL Coach] Fill Missing Fields clicked');
@@ -1616,7 +1560,6 @@ jQuery(document).on('click', '.fill-missing-fields, button:contains("Fill Missin
         return;
     }
 
-    // Get the AI response content
     const $chatMessages = $modal.find('.chat-messages');
     const $lastAssistantMsg = $chatMessages.find('.message.assistant').last();
 
@@ -1629,11 +1572,9 @@ jQuery(document).on('click', '.fill-missing-fields, button:contains("Fill Missin
     const fullResponse = $lastAssistantMsg.find('.message-content').text();
     console.log('[PL Coach] Full AI response length:', fullResponse.length);
 
-    // Get the current phase
     const phase = $modal.data('phase') || $button.data('phase') || 'unknown';
     console.log('[PL Coach] Current phase:', phase);
 
-    // Parse AI response to extract field suggestions
     const fieldSuggestions = parseAIResponseForFields(fullResponse, phase);
     console.log('[PL Coach] Parsed field suggestions:', fieldSuggestions);
 
@@ -1643,119 +1584,268 @@ jQuery(document).on('click', '.fill-missing-fields, button:contains("Fill Missin
         return;
     }
 
-    // Get current form values
     const currentValues = getCurrentFormValues(phase);
     console.log('[PL Coach] Current form values:', currentValues);
 
-    // Build modal with field comparisons
     showFieldReplacementModal(fieldSuggestions, currentValues, phase);
 });
 
 /**
  * Parse AI response to extract field-specific content
- * Enhanced to handle various response formats
+ * ENHANCED with comprehensive pattern matching and fallback strategies
  */
 function parseAIResponseForFields(responseText, phase) {
     const fields = {};
 
-    // Field patterns by phase
+    if (!responseText) {
+        return fields;
+    }
+
+    const normalizedText = responseText
+        .replace(/\r\n/g, '\n')
+        .replace(/\u00A0/g, ' ')
+        .replace(/\]\s*(?=\[)/g, ']\n')
+        .trim();
+
+    // Field patterns by phase with multiple matching strategies
     const fieldPatterns = {
         'create_offer': {
             'main_offer': [
                 /(?:main offer|core offering|product offering)[:\s]+([^]*?)(?=\n\n|pricing|bonus|guarantee|$)/i,
-                /\[main_offer\]\s*([^]*?)(?=\[|$)/i,
+                /\[(?:main[_\s]?offer|core[_\s]?offering|product[_\s]?offering)\]\s*([^]*?)(?=\[|$)/i,
                 /(?:^|\n)main offer[:\s]*([^]*?)(?=\n\n|$)/im
             ],
             'pricing_strategy': [
-                /(?:pricing strategy|pricing|price point)[:\s]+([^]*?)(?=\n\n|bonus|guarantee|$)/i,
-                /\[pricing_strategy\]\s*([^]*?)(?=\[|$)/i
+                /(?:pricing strategy|pricing|price point|investment)[:\s]+([^]*?)(?=\n\n|bonus|guarantee|$)/i,
+                /\[(?:pricing[_\s]?strategy|pricing|price[_\s]?point|investment)\]\s*([^]*?)(?=\[|$)/i
             ],
             'bonuses': [
                 /(?:bonuses?|bonus items?)[:\s]+([^]*?)(?=\n\n|guarantee|pricing|$)/i,
-                /\[bonuses\]\s*([^]*?)(?=\[|$)/i
+                /\[(?:bonuses?|bonus[_\s]?items?)\]\s*([^]*?)(?=\[|$)/i
             ],
             'guarantee': [
-                /(?:guarantee|money.back)[:\s]+([^]*?)(?=\n\n|$)/i,
-                /\[guarantee\]\s*([^]*?)(?=\[|$)/i
+                /(?:guarantee|money.back|refund policy)[:\s]+([^]*?)(?=\n\n|$)/i,
+                /\[(?:guarantee|money[_\s]?back|refund[_\s]?policy)\]\s*([^]*?)(?=\[|$)/i
             ]
         },
         'market_clarity': {
             'target_audience': [
-                /(?:target audience|ideal customer)[:\s]+([^]*?)(?=\n\n|pain points|value|$)/i,
-                /\[target_audience\]\s*([^]*?)(?=\[|$)/i
+                /(?:target audience|ideal customer|ideal client)[:\s]+([^]*?)(?=\n\n|pain points|value|$)/i,
+                /\[(?:target[_\s]?audience|ideal[_\s]?customer|ideal[_\s]?client)\]\s*([^]*?)(?=\[|$)/i
             ],
             'pain_points': [
                 /(?:pain points?|problems?|challenges?)[:\s]+([^]*?)(?=\n\n|value|market|$)/i,
-                /\[pain_points\]\s*([^]*?)(?=\[|$)/i
+                /\[(?:pain[_\s]?points?|problems?|challenges?)\]\s*([^]*?)(?=\[|$)/i
             ],
             'value_proposition': [
-                /(?:value proposition|unique value)[:\s]+([^]*?)(?=\n\n|market|competitor|$)/i,
-                /\[value_proposition\]\s*([^]*?)(?=\[|$)/i
+                /(?:value proposition|unique value|unique selling proposition|usp)[:\s]+([^]*?)(?=\n\n|market|competitor|$)/i,
+                /\[(?:value[_\s]?proposition|unique[_\s]?value|unique[_\s]?selling[_\s]?proposition|usp)\]\s*([^]*?)(?=\[|$)/i
             ]
         },
         'email_sequences': {
             'email_subject': [
-                /(?:subject lines?)[:\s]+([^]*?)(?=\n\n|email body|preview|$)/i,
-                /\[email_subject\]\s*([^]*?)(?=\[|$)/i
+                /(?:subject lines?|email subject|headline)[:\s]+([^]*?)(?=\n\n|email body|preview|$)/i,
+                /\[(?:email[_\s]?subject|subject[_\s]?lines?)\]\s*([^]*?)(?=\[|$)/i
             ],
             'email_body': [
-                /(?:email body|email copy|email content)[:\s]+([^]*?)(?=\n\n|subject|preview|$)/i,
-                /\[email_body\]\s*([^]*?)(?=\[|$)/i
+                /(?:email body|email copy|email content|message)[:\s]+([^]*?)(?=\n\n|subject|preview|$)/i,
+                /\[(?:email[_\s]?body|email[_\s]?copy|email[_\s]?content|message)\]\s*([^]*?)(?=\[|$)/i
             ]
         }
     };
 
-    // Get patterns for current phase
+    // Alias mapping for field name variations
+    const aliasMap = {
+        'main_offer': 'main_offer',
+        'core_offering': 'main_offer',
+        'product_offering': 'main_offer',
+        'offer': 'main_offer',
+        'pricing_strategy': 'pricing_strategy',
+        'pricing': 'pricing_strategy',
+        'price_point': 'pricing_strategy',
+        'investment': 'pricing_strategy',
+        'bonuses': 'bonuses',
+        'bonus_items': 'bonuses',
+        'bonus': 'bonuses',
+        'guarantee': 'guarantee',
+        'money_back': 'guarantee',
+        'refund_policy': 'guarantee',
+        'target_audience': 'target_audience',
+        'ideal_customer': 'target_audience',
+        'ideal_client': 'target_audience',
+        'pain_points': 'pain_points',
+        'pain_point': 'pain_points',
+        'customer_challenges': 'pain_points',
+        'challenges': 'pain_points',
+        'problems': 'pain_points',
+        'value_proposition': 'value_proposition',
+        'unique_value': 'value_proposition',
+        'unique_selling_proposition': 'value_proposition',
+        'usp': 'value_proposition',
+        'email_subject': 'email_subject',
+        'subject_line': 'email_subject',
+        'subject_lines': 'email_subject',
+        'headline': 'email_subject',
+        'email_body': 'email_body',
+        'email_copy': 'email_body',
+        'email_content': 'email_body',
+        'message_body': 'email_body',
+        'ad_headline': 'ad_headline',
+        'ad_body': 'ad_body',
+        'ad_copy': 'ad_body'
+    };
+
     const phasePatterns = fieldPatterns[phase] || {};
+    const relevantFieldIds = new Set(Object.keys(phasePatterns));
 
-    // Try to match each field
+    const normalizeLabel = (label) => label
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+
+    const cleanContent = (content) => content
+        .replace(/\[\/[^\]]+\]/g, '')
+        .replace(/^[\s:\-–]+/, '')
+        .trim();
+
+    const resolveFieldId = (label) => {
+        const normalizedLabel = normalizeLabel(label);
+
+        if (aliasMap[normalizedLabel]) {
+            return aliasMap[normalizedLabel];
+        }
+
+        let singularLabel = null;
+        if (normalizedLabel.endsWith('es')) {
+            singularLabel = normalizedLabel.replace(/es$/, '');
+        } else if (normalizedLabel.endsWith('s') && !normalizedLabel.endsWith('us')) {
+            singularLabel = normalizedLabel.replace(/s$/, '');
+        }
+
+        if (singularLabel && aliasMap[singularLabel]) {
+            return aliasMap[singularLabel];
+        }
+
+        return null;
+    };
+
+    const assignField = (fieldId, rawContent, source) => {
+        if (!fieldId) {
+            return;
+        }
+
+        if (relevantFieldIds.size && !relevantFieldIds.has(fieldId)) {
+            return;
+        }
+
+        const content = cleanContent(rawContent);
+
+        if (content.length < 20) {
+            return;
+        }
+
+        if (!fields[fieldId] || content.length > fields[fieldId].length) {
+            fields[fieldId] = content;
+            console.log(`[PL Coach] ${source} matched: ${fieldId}, length: ${content.length}`);
+        }
+    };
+
+    // Pass 1: Parse structured [FIELD] blocks
+    const bracketRegex = /\[([^\]]+)\]\s*:?[\t ]*([\s\S]*?)(?=\n\s*\[[^\]]+\]\s*:|$)/gi;
+    let bracketMatch;
+    while ((bracketMatch = bracketRegex.exec(normalizedText)) !== null) {
+        const label = bracketMatch[1];
+        const fieldId = resolveFieldId(label);
+        if (fieldId) {
+            assignField(fieldId, bracketMatch[2], 'Structured');
+        } else {
+            console.log('[PL Coach] Structured label not mapped:', label);
+        }
+    }
+
+    // Pass 2: Parse "Field Name:" style sections line-by-line
+    const lines = normalizedText.split(/\n+/);
+    let currentLabel = null;
+    let buffer = [];
+
+    const flushBuffer = () => {
+        if (!currentLabel) {
+            return;
+        }
+        const fieldId = resolveFieldId(currentLabel);
+        if (fieldId && buffer.length) {
+            assignField(fieldId, buffer.join('\n'), 'Section');
+        } else if (!fieldId) {
+            console.log('[PL Coach] Section label not mapped:', currentLabel);
+        }
+        currentLabel = null;
+        buffer = [];
+    };
+
+    lines.forEach((line) => {
+        const labelMatch = line.match(/^\s*(?:\[)?([A-Za-z][A-Za-z0-9 _\-/]{2,})\]?\s*:\s*(.*)$/);
+        if (labelMatch) {
+            flushBuffer();
+            currentLabel = labelMatch[1];
+            const remainder = labelMatch[2];
+            if (remainder) {
+                buffer.push(remainder.trim());
+            }
+        } else if (currentLabel) {
+            buffer.push(line.trim());
+        }
+    });
+    flushBuffer();
+
+    // Pass 3: Use regex patterns for any remaining fields
     for (const [fieldId, patterns] of Object.entries(phasePatterns)) {
-        for (const pattern of patterns) {
-            const match = responseText.match(pattern);
-            if (match && match[1]) {
-                let content = match[1].trim();
-                // Clean up content
-                content = content.replace(/^[:\-\s]+/, ''); // Remove leading punctuation
-                content = content.replace(/\[\/[^\]]+\]/g, ''); // Remove closing tags
+        if (fields[fieldId]) {
+            continue;
+        }
 
-                if (content.length > 20) { // Minimum viable content
-                    fields[fieldId] = content;
-                    console.log(`[PL Coach] Matched field: ${fieldId}, length: ${content.length}`);
-                    break; // Found content for this field
+        for (const pattern of patterns) {
+            const match = normalizedText.match(pattern);
+            if (match && match[1]) {
+                assignField(fieldId, match[1], 'Regex');
+                if (fields[fieldId]) {
+                    break;
                 }
             }
         }
     }
 
-    // Fallback: Split by paragraphs and try to match by keywords
-    if (Object.keys(fields).length === 0) {
-        console.log('[PL Coach] Using fallback paragraph matching');
-        const paragraphs = responseText.split(/\n\n+/);
+    // Pass 4: Fallback paragraph/keyword detection
+    const missingFields = Object.keys(phasePatterns).filter((fieldId) => !fields[fieldId]);
 
-        // Simple keyword matching for fallback
+    if (missingFields.length) {
+        console.log('[PL Coach] Using fallback paragraph matching for', missingFields);
+        const paragraphs = normalizedText.split(/\n{2,}|\r{2,}/);
+
         const keywordMap = {
             'main_offer': ['offer', 'program', 'course', 'service', 'product'],
-            'pricing_strategy': ['price', 'pricing', 'cost', '$', 'payment'],
+            'pricing_strategy': ['price', 'pricing', 'cost', ', 'investment', 'payment'],
             'bonuses': ['bonus', 'bonuses', 'extra', 'include'],
             'guarantee': ['guarantee', 'refund', 'money back', 'risk-free'],
-            'target_audience': ['audience', 'customer', 'client', 'who'],
-            'pain_points': ['pain', 'problem', 'struggle', 'challenge'],
+            'target_audience': ['audience', 'customer', 'client', 'who', 'buyer'],
+            'pain_points': ['pain', 'problem', 'struggle', 'challenge', 'frustration'],
+            'value_proposition': ['value proposition', 'unique value', 'usp', 'differentiates'],
             'email_subject': ['subject', 'headline'],
             'email_body': ['email', 'message', 'copy']
         };
 
-        for (const [fieldId, keywords] of Object.entries(keywordMap)) {
+        missingFields.forEach((fieldId) => {
+            const keywords = keywordMap[fieldId] || [];
             for (const paragraph of paragraphs) {
                 const lowerPara = paragraph.toLowerCase();
-                if (keywords.some(kw => lowerPara.includes(kw)) && paragraph.length > 50) {
-                    if (!fields[fieldId]) {
-                        fields[fieldId] = paragraph.trim();
-                        console.log(`[PL Coach] Fallback matched: ${fieldId}`);
+                if (keywords.some((kw) => lowerPara.includes(kw)) && paragraph.trim().length > 40) {
+                    assignField(fieldId, paragraph, 'Fallback');
+                    if (fields[fieldId]) {
                         break;
                     }
                 }
             }
-        }
+        });
     }
 
     return fields;
@@ -1767,12 +1857,10 @@ function parseAIResponseForFields(responseText, phase) {
 function getCurrentFormValues(phase) {
     const values = {};
 
-    // Find all relevant form fields
     const $form = jQuery('form, .phase-form, [data-phase="' + phase + '"]').first();
 
     if ($form.length === 0) {
         console.warn('[PL Coach] Form not found, searching globally');
-        // Search for fields globally
         jQuery('textarea, input[type="text"]').each(function() {
             const $field = jQuery(this);
             const fieldId = $field.attr('id') || $field.attr('name');
@@ -1781,7 +1869,6 @@ function getCurrentFormValues(phase) {
             }
         });
     } else {
-        // Search within form
         $form.find('textarea, input[type="text"]').each(function() {
             const $field = jQuery(this);
             const fieldId = $field.attr('id') || $field.attr('name');
@@ -1799,7 +1886,6 @@ function getCurrentFormValues(phase) {
  * Show field replacement modal with suggestions
  */
 function showFieldReplacementModal(suggestions, currentValues, phase) {
-    // Remove any existing modal
     jQuery('.pl-field-replacement-modal').remove();
 
     let modalHtml = `
@@ -1943,7 +2029,6 @@ function showFieldReplacementModal(suggestions, currentValues, phase) {
 
     console.log('[PL Coach] Modal shown with', fieldCount, 'fields');
 
-    // Update selection count
     updateSelectionCount();
 }
 
@@ -2022,13 +2107,11 @@ jQuery(document).on('click', '.confirm-replacement', function() {
         const fieldId = $checkbox.val();
         const suggestedContent = $checkbox.data('suggested');
 
-        // Find and update the field
         const $field = jQuery(`#${fieldId}, [name="${fieldId}"]`).first();
 
         if ($field.length) {
             $field.val(suggestedContent).trigger('change');
 
-            // Visual feedback
             $field.css('background', '#e8f5e9');
             setTimeout(() => {
                 $field.css('background', '');
@@ -2043,7 +2126,6 @@ jQuery(document).on('click', '.confirm-replacement', function() {
 
     $modal.remove();
 
-    // Show success message
     if (replacedCount > 0) {
         const $notice = jQuery(`
             <div style="
