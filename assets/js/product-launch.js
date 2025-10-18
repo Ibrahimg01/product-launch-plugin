@@ -700,6 +700,8 @@ class EnhancedProductLaunchCoach {
     }
     
     showImprovementModal(analysisContent) {
+        console.log('[PL Coach] showImprovementModal called');
+
         // Remove any existing modal
         jQuery('.improvement-modal-overlay').remove();
 
@@ -708,8 +710,7 @@ class EnhancedProductLaunchCoach {
 
         // Format the content
         const formattedContent = this.formatAnalysisContent(analysisContent);
-        console.log('[PL Coach] Showing improvement modal');
-        console.log('[PL Coach] Formatted content length:', formattedContent.length);
+        console.log('[PL Coach] Modal will show formatted content');
 
         // Create modal HTML with explicit structure
         const modalHtml = `
@@ -722,11 +723,11 @@ class EnhancedProductLaunchCoach {
                         </h3>
                         <button class="improvement-close" aria-label="Close">&times;</button>
                     </div>
-                    
+                
                     <div class="improvement-content">
                         ${formattedContent}
                     </div>
-                    
+                
                     <div class="improvement-actions">
                         <button class="button improvement-action-btn improvement-close-btn">
                             <span class="dashicons dashicons-no-alt"></span>
@@ -743,13 +744,14 @@ class EnhancedProductLaunchCoach {
 
         // Append to body
         jQuery('body').append(modalHtml);
+        console.log('[PL Coach] Modal HTML appended');
 
         // Store current analysis
         this.currentAnalysis = analysisContent;
 
         // Bind close events
         jQuery('.improvement-close, .improvement-close-btn').on('click', () => {
-            console.log('[PL Coach] Closing improvement modal');
+            console.log('[PL Coach] Closing modal');
             jQuery('.improvement-modal-overlay').fadeOut(300, function() {
                 jQuery(this).remove();
                 jQuery('#product-launch-modal').css('z-index', '');
@@ -767,10 +769,12 @@ class EnhancedProductLaunchCoach {
             this.requestImprovedContentFromAnalysis();
         });
 
-        console.log('[PL Coach] Modal HTML appended to body');
+        console.log('[PL Coach] Event handlers bound');
     }
     
     formatAnalysisContent(content) {
+        console.log('[PL Coach] formatAnalysisContent called with:', content.substring(0, 100));
+
         // Format AI response markers first
         content = this.formatAIResponse(content);
 
@@ -848,9 +852,9 @@ class EnhancedProductLaunchCoach {
             '<div style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e5e7eb;"></div><strong style="font-size: 18px; color: #dc2626; display: block; margin-bottom: 16px;">💡 Suggestions for Improvement:</strong>'
         );
 
+        console.log('[PL Coach] formatAnalysisContent output:', formatted.substring(0, 200));
         return formatted.trim();
     }
-    
     // NEW METHOD: Generate actual content preview before showing modal
     requestImprovedContentFromAnalysis() {
         if (!this.currentAnalysis) {
@@ -1103,7 +1107,7 @@ Generate the content now:`;
 
     // Helper method for regex escaping
     escapeRegex(str) {
-        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\                const leadingSplit = trimmedText.match(/^([^:\-\n]{1');
+        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
     
     // MODIFIED: showOverrideConfirmation now accepts generated content
