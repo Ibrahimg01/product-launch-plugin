@@ -1034,6 +1034,7 @@ Generate the content now:`;
     parseFieldContentResponse(aiResponse, fieldIds) {
         const parsed = {};
         const seenContent = new Set();
+        const usedParagraphIndices = new Set();
         const normalizeSignature = (text) => (text || '').replace(/\s+/g, ' ').trim().toLowerCase();
 
         console.log('[PL Coach] Parsing response for fields:', fieldIds);
@@ -1167,6 +1168,9 @@ Generate the content now:`;
 
             let matchedParagraphEntry = null;
             for (const entry of paragraphs) {
+                if (usedParagraphIndices.has(entry.index)) {
+                    continue;
+                }
                 if (seenContent.has(entry.signature)) {
                     continue;
                 }
@@ -1178,7 +1182,7 @@ Generate the content now:`;
             }
 
             if (!matchedParagraphEntry && paragraphs.length) {
-                const availableParagraphs = paragraphs.filter(entry => !seenContent.has(entry.signature));
+                const availableParagraphs = paragraphs.filter(entry => !usedParagraphIndices.has(entry.index) && !seenContent.has(entry.signature));
                 const fieldIndex = fieldIds.indexOf(fieldId);
                 if (availableParagraphs.length) {
                     matchedParagraphEntry = availableParagraphs[fieldIndex] || availableParagraphs[availableParagraphs.length - 1];
@@ -1197,6 +1201,7 @@ Generate the content now:`;
 
                 if (cleanedParagraph.length > 40) {
                     const signature = normalizeSignature(cleanedParagraph);
+                    usedParagraphIndices.add(matchedParagraphEntry.index);
                     if (!seenContent.has(signature)) {
                         parsed[fieldId] = cleanedParagraph;
                         seenContent.add(signature);
