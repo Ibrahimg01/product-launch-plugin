@@ -93,7 +93,7 @@ if (!defined('ABSPATH')) {
             return;
         }
 
-        const ajaxUrl = plLibrary.ajaxurlRelative || plLibrary.ajaxurl || (typeof window.ajaxurl !== 'undefined' ? window.ajaxurl : '');
+        const ajaxUrl = plLibrary.ajaxurl || plLibrary.ajaxurlRelative || (typeof window.ajaxurl !== 'undefined' ? window.ajaxurl : '');
         if (!ajaxUrl) {
             console.error('Product Launch: Unable to determine AJAX URL for ideas library.');
             return;
@@ -285,7 +285,7 @@ if (!defined('ABSPATH')) {
                     '</div>' +
                     '<div class="pl-idea-footer">' +
                         '<a href="' + detailUrl + '" class="pl-view-details-btn">' +
-                            '<?php echo esc_js(__('View Details →', 'product-launch')); ?>' +
+                            '<?php echo esc_js(__('View Full Report →', 'product-launch')); ?>' +
                         '</a>' +
                     '</div>' +
                 '</div>'
