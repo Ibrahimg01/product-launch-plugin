@@ -24,6 +24,11 @@ $idea_id = isset($atts['id']) ? sanitize_text_field($atts['id']) : '';
         }
 
         const ideaId = '<?php echo esc_js($idea_id); ?>';
+        const ajaxUrl = plLibrary.ajaxurlRelative || plLibrary.ajaxurl || (typeof window.ajaxurl !== 'undefined' ? window.ajaxurl : '');
+        if (!ajaxUrl) {
+            showError('<?php echo esc_js(__('Unable to contact the ideas library service.', 'product-launch')); ?>');
+            return;
+        }
         const isLoggedIn = typeof plValidationFrontend !== 'undefined' ? plValidationFrontend.isLoggedIn : false;
         const loginUrl = typeof plValidationFrontend !== 'undefined' ? plValidationFrontend.loginUrl : '#';
         const backLinkTemplate = function() {
@@ -40,7 +45,7 @@ $idea_id = isset($atts['id']) ? sanitize_text_field($atts['id']) : '';
         }
 
         $.ajax({
-            url: plLibrary.ajaxurl,
+            url: ajaxUrl,
             type: 'POST',
             data: {
                 action: 'pl_get_idea_details',
@@ -176,7 +181,7 @@ $idea_id = isset($atts['id']) ? sanitize_text_field($atts['id']) : '';
                 button.prop('disabled', true).text('<?php echo esc_js(__('Pushing to system...', 'product-launch')); ?>');
 
                 $.ajax({
-                    url: plLibrary.ajaxurl,
+                    url: ajaxUrl,
                     type: 'POST',
                     data: {
                         action: 'pl_push_to_phases',

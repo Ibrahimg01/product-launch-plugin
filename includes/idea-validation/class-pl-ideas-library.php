@@ -158,8 +158,12 @@ class PL_Ideas_Library {
 
         $categories = $this->refresh_category_context();
 
+        $ajax_url = admin_url('admin-ajax.php');
+        $ajax_url_relative = admin_url('admin-ajax.php', 'relative');
+
         wp_localize_script('pl-validation-frontend', 'plLibrary', array(
-            'ajaxurl' => admin_url('admin-ajax.php'),
+            'ajaxurl' => $ajax_url,
+            'ajaxurlRelative' => $ajax_url_relative,
             'nonce' => wp_create_nonce('pl_library'),
             'perPage' => (int) $atts['per_page'],
             'minScore' => (int) $atts['min_score'],
@@ -202,8 +206,12 @@ class PL_Ideas_Library {
         $library_page = get_page_by_path('ideas-library');
         $library_url = $library_page ? get_permalink($library_page) : '';
 
+        $ajax_url = admin_url('admin-ajax.php');
+        $ajax_url_relative = admin_url('admin-ajax.php', 'relative');
+
         wp_localize_script('pl-validation-frontend', 'plLibrary', array(
-            'ajaxurl' => admin_url('admin-ajax.php'),
+            'ajaxurl' => $ajax_url,
+            'ajaxurlRelative' => $ajax_url_relative,
             'nonce' => wp_create_nonce('pl_library'),
             'libraryUrl' => $library_url,
         ));
