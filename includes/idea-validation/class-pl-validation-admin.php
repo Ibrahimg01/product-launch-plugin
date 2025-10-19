@@ -294,10 +294,259 @@ class PL_Validation_Admin {
             wp_die(__('You do not have sufficient permissions to access this page.', 'product-launch'));
         }
 
+        $is_network_context = is_network_admin();
+        $can_manage_library = $is_network_context
+            ? current_user_can('manage_network_options')
+            : current_user_can('manage_options');
+
+        if (is_multisite() && !$is_network_context) {
+            $can_manage_library = false;
+        }
+
+        $library_management_restricted = (is_multisite() && !$is_network_context);
+        $library_messages = array();
+        $categories = pl_get_library_categories();
+        $category_labels = wp_list_pluck($categories, 'label', 'slug');
+        $category_map = pl_get_library_category_map();
+
+        if ($can_manage_library && isset($_POST['pl_library_categories_submit'])) {
+            check_admin_referer('pl_library_categories_manage');
+
+            $raw_input = isset($_POST['pl_library_categories_raw']) ? wp_unslash($_POST['pl_library_categories_raw']) : '';
+            $parsed_categories = $this->parse_library_categories_input($raw_input);
+
+            if (empty($parsed_categories)) {
+                $parsed_categories = pl_get_default_library_categories();
+            }
+
+            pl_update_library_categories($parsed_categories);
+
+            $categories = $parsed_categories;
+            $category_labels = wp_list_pluck($categories, 'label', 'slug');
+
+            $allowed_slugs = array_keys($category_labels);
+            $category_map = $this->filter_category_map($category_map, $allowed_slugs);
+            pl_update_library_category_map($category_map);
+
+            $library_messages[] = array(
+                'type' => 'success',
+                'text' => __('Library categories updated.', 'product-launch'),
+            );
+        }
+
+        if ($can_manage_library && isset($_POST['pl_library_assignments_submit'])) {
+            check_admin_referer('pl_library_assignments');
+
+            $submitted_assignments = isset($_POST['library_assignments']) ? (array) $_POST['library_assignments'] : array();
+            $category_map = $this->parse_library_assignments($submitted_assignments, array_keys($category_labels), $category_map);
+
+            pl_update_library_category_map($category_map);
+
+            $library_messages[] = array(
+                'type' => 'success',
+                'text' => __('Idea category assignments updated.', 'product-launch'),
+            );
+        }
+
+        $categories_text = $this->format_categories_textarea($categories);
+        $assignable_validations = array();
+
+        if ($can_manage_library) {
+            $assignable_validations = $this->get_assignable_validations();
+        }
+
         $library_content = do_shortcode('[pl_ideas_library]');
         $discovery_url = is_network_admin() ? $this->get_admin_page_url('product-launch-network-validation') : '';
 
         include PL_PLUGIN_DIR . 'templates/admin/ideas-library.php';
+    }
+
+    /**
+     * Normalize a category textarea submission.
+     *
+     * @param string $input Raw textarea input.
+     * @return array
+     */
+    private function parse_library_categories_input($input) {
+        if (empty($input)) {
+            return array();
+        }
+
+        $categories = array();
+        $lines = preg_split('/\r?\n/', $input);
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+
+            if ('' === $line) {
+                continue;
+            }
+
+            $parts = array_map('trim', explode('|', $line));
+            $label = array_shift($parts);
+            $slug = $parts ? array_shift($parts) : '';
+
+            if ('' === $label) {
+                continue;
+            }
+
+            $slug = sanitize_title($slug ? $slug : $label);
+
+            if ('' === $slug) {
+                continue;
+            }
+
+            $categories[$slug] = array(
+                'slug'  => $slug,
+                'label' => sanitize_text_field($label),
+            );
+        }
+
+        return array_values($categories);
+    }
+
+    /**
+     * Remove category assignments that are no longer valid.
+     *
+     * @param array $map          Existing assignment map.
+     * @param array $allowed_slugs Allowed category slugs.
+     * @return array
+     */
+    private function filter_category_map($map, $allowed_slugs) {
+        if (empty($map)) {
+            return array();
+        }
+
+        $allowed = array_map('sanitize_title', (array) $allowed_slugs);
+
+        $filtered = array();
+
+        foreach ($map as $idea_key => $slugs) {
+            $idea_key = sanitize_text_field($idea_key);
+
+            if ('' === $idea_key) {
+                continue;
+            }
+
+            if (!is_array($slugs)) {
+                $slugs = array($slugs);
+            }
+
+            $valid_slugs = array();
+
+            foreach ($slugs as $slug) {
+                $slug = sanitize_title($slug);
+
+                if ('' === $slug || !in_array($slug, $allowed, true)) {
+                    continue;
+                }
+
+                $valid_slugs[] = $slug;
+            }
+
+            if ($valid_slugs) {
+                $filtered[$idea_key] = array_values(array_unique($valid_slugs));
+            }
+        }
+
+        return $filtered;
+    }
+
+    /**
+     * Convert categories into textarea-safe string.
+     *
+     * @param array $categories Category definitions.
+     * @return string
+     */
+    private function format_categories_textarea($categories) {
+        if (empty($categories) || !is_array($categories)) {
+            return '';
+        }
+
+        $lines = array();
+
+        foreach ($categories as $category) {
+            if (!is_array($category)) {
+                continue;
+            }
+
+            $label = isset($category['label']) ? $category['label'] : '';
+            $slug = isset($category['slug']) ? $category['slug'] : '';
+
+            if ('' === $label || '' === $slug) {
+                continue;
+            }
+
+            $lines[] = sanitize_text_field($label) . '|' . sanitize_title($slug);
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Parse category assignments for ideas.
+     *
+     * @param array $submitted     Raw submitted assignments.
+     * @param array $allowed_slugs Allowed category slugs.
+     * @param array $existing_map  Existing assignment map.
+     * @return array
+     */
+    private function parse_library_assignments($submitted, $allowed_slugs, $existing_map = array()) {
+        $allowed = array_map('sanitize_title', (array) $allowed_slugs);
+        $map = is_array($existing_map) ? $existing_map : array();
+
+        $submitted = wp_unslash($submitted);
+
+        foreach ($submitted as $idea_key => $slugs) {
+            $idea_key = sanitize_text_field($idea_key);
+
+            if ('' === $idea_key) {
+                continue;
+            }
+
+            if (!is_array($slugs)) {
+                $slugs = array($slugs);
+            }
+
+            $clean = array();
+
+            foreach ($slugs as $slug) {
+                $slug = sanitize_title($slug);
+
+                if ('' === $slug || !in_array($slug, $allowed, true)) {
+                    continue;
+                }
+
+                $clean[] = $slug;
+            }
+
+            if ($clean) {
+                $map[$idea_key] = array_values(array_unique($clean));
+            } else {
+                unset($map[$idea_key]);
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Retrieve a concise list of published validations for assignment management.
+     *
+     * @return array
+     */
+    private function get_assignable_validations() {
+        $access = new PL_Validation_Access();
+        $validations = $access->get_published_validations(array(
+            'order_by' => 'published_at',
+            'order' => 'DESC',
+        ));
+
+        if (!is_array($validations)) {
+            return array();
+        }
+
+        return array_slice($validations, 0, 50);
     }
 
     /**
