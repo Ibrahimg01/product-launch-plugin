@@ -40,11 +40,11 @@ class PL_Validation_Admin {
 
         add_submenu_page(
             $parent_slug,
-            __('Validation Dashboard', 'product-launch'),
-            __('Validation Dashboard', 'product-launch'),
-            'manage_options',
-            'product-launch-validation-dashboard',
-            array($this, 'render_dashboard_page')
+            __('Ideas Library', 'product-launch'),
+            __('Ideas Library', 'product-launch'),
+            'read',
+            'product-launch-ideas-library',
+            array($this, 'render_ideas_library_page')
         );
 
         add_submenu_page(
@@ -113,6 +113,15 @@ class PL_Validation_Admin {
 
         add_submenu_page(
             $parent_slug,
+            __('Ideas Library', 'product-launch'),
+            __('Ideas Library', 'product-launch'),
+            'manage_network_options',
+            'product-launch-network-ideas-library',
+            array($this, 'render_ideas_library_page')
+        );
+
+        add_submenu_page(
+            $parent_slug,
             __('All Validations', 'product-launch'),
             __('All Validations', 'product-launch'),
             'manage_network_options',
@@ -147,7 +156,9 @@ class PL_Validation_Admin {
     public function enqueue_admin_assets($hook) {
         if (false === strpos($hook, 'product-launch-validation')
             && false === strpos($hook, 'pl-validation')
-            && false === strpos($hook, 'product-launch-network-validation')) {
+            && false === strpos($hook, 'product-launch-network-validation')
+            && false === strpos($hook, 'product-launch-ideas-library')
+            && false === strpos($hook, 'product-launch-network-ideas-library')) {
             return;
         }
 
@@ -177,7 +188,9 @@ class PL_Validation_Admin {
         ));
 
         if (false !== strpos($hook, 'product-launch_page_product-launch-validation')
-            || false !== strpos($hook, 'product-launch-network-settings_page_product-launch-network-validation')) {
+            || false !== strpos($hook, 'product-launch_page_product-launch-ideas-library')
+            || false !== strpos($hook, 'product-launch-network-settings_page_product-launch-network-validation')
+            || false !== strpos($hook, 'product-launch-network-settings_page_product-launch-network-ideas-library')) {
             wp_enqueue_style(
                 'pl-validation-frontend',
                 PL_PLUGIN_URL . 'assets/css/validation-frontend.css',
@@ -248,6 +261,19 @@ class PL_Validation_Admin {
         $list_page_url = $this->get_admin_page_url($list_page_slug);
 
         include PL_PLUGIN_DIR . 'templates/admin/validation-dashboard.php';
+    }
+
+    /**
+     * Render ideas library page for administrators and clients.
+     */
+    public function render_ideas_library_page() {
+        if (!current_user_can('read')) {
+            wp_die(__('You do not have sufficient permissions to access this page.', 'product-launch'));
+        }
+
+        $library_content = do_shortcode('[pl_ideas_library]');
+
+        include PL_PLUGIN_DIR . 'templates/admin/ideas-library.php';
     }
 
     /**
