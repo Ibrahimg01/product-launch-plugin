@@ -76,7 +76,40 @@ class PL_Validation_Frontend {
             'redirect' => ''
         ), $atts);
 
+        $report_output = '';
+        $view_validation_id = isset($_GET['validation_id']) ? intval($_GET['validation_id']) : 0;
+
+        if ($view_validation_id) {
+            $access = new PL_Validation_Access();
+            $validation = $access->get_validation($view_validation_id);
+
+            if ($validation) {
+                $back_link_url = remove_query_arg('validation_id');
+
+                if (!$back_link_url) {
+                    $back_link_url = get_permalink();
+                }
+
+                if (!$back_link_url) {
+                    $back_link_url = home_url('/');
+                }
+
+                $back_link_url = apply_filters('pl_validation_report_back_url', $back_link_url, 'frontend_form');
+
+                ob_start();
+                include PL_PLUGIN_DIR . 'templates/frontend/validation-report.php';
+                $report_output = ob_get_clean();
+            } else {
+                $report_output = '<div class="pl-error">' . esc_html__('Validation not found or you do not have permission to view it.', 'product-launch') . '</div>';
+            }
+        }
+
         ob_start();
+
+        if (!empty($report_output)) {
+            echo '<div class="pl-inline-validation-report">' . $report_output . '</div>';
+        }
+
         include PL_PLUGIN_DIR . 'templates/frontend/validation-form.php';
         return ob_get_clean();
     }
@@ -200,6 +233,10 @@ class PL_Validation_Frontend {
         // Submit to API
         $api = new PL_Validation_API();
         $result = $api->submit_idea($business_idea, $user_id, $site_id);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
 
         if (!$result) {
             wp_send_json_error(array('message' => __('Failed to submit validation. Please try again.', 'product-launch')));

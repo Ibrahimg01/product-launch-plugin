@@ -1,5 +1,6 @@
 jQuery(document).ready(function($) {
     const validationConfig = typeof plValidationFrontend !== 'undefined' ? plValidationFrontend : null;
+    let stepInterval = null;
     // Character counter
     $('#pl-business-idea').on('input', function() {
         const count = $(this).val().length;
@@ -58,6 +59,7 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     // Update progress to complete
                     updateProgress(100);
+                    completeSteps();
 
                     // Wait a moment then redirect
                     setTimeout(function() {
@@ -110,19 +112,26 @@ jQuery(document).ready(function($) {
 
     // Processing modal functions
     function showProcessingModal() {
+        resetSteps();
         $('#pl-processing-modal').fadeIn();
         animateSteps();
     }
 
     function hideProcessingModal() {
-        $('#pl-processing-modal').fadeOut();
+        $('#pl-processing-modal').fadeOut(function() {
+            resetSteps();
+        });
     }
 
     function animateSteps() {
         const steps = $('.pl-step');
         let currentStep = 0;
 
-        const interval = setInterval(function() {
+        if (stepInterval) {
+            clearInterval(stepInterval);
+        }
+
+        stepInterval = setInterval(function() {
             if (currentStep > 0) {
                 steps.eq(currentStep - 1).addClass('completed').removeClass('active');
             }
@@ -131,13 +140,40 @@ jQuery(document).ready(function($) {
                 steps.eq(currentStep).addClass('active');
                 currentStep++;
             } else {
-                clearInterval(interval);
+                clearInterval(stepInterval);
+                stepInterval = null;
             }
-        }, 8000); // ~8 seconds per step for 30-second total
+        }, 1500);
     }
 
     function updateProgress(percent) {
         $('.pl-progress-fill').css('width', percent + '%');
+    }
+
+    function completeSteps() {
+        const steps = $('.pl-step');
+
+        if (stepInterval) {
+            clearInterval(stepInterval);
+            stepInterval = null;
+        }
+
+        steps.removeClass('active').addClass('completed');
+        const lastStep = steps.last();
+        lastStep.addClass('active');
+    }
+
+    function resetSteps() {
+        const steps = $('.pl-step');
+
+        if (stepInterval) {
+            clearInterval(stepInterval);
+            stepInterval = null;
+        }
+
+        steps.removeClass('completed active');
+        steps.eq(0).addClass('active');
+        $('.pl-progress-fill').css('width', '0%');
     }
 
     // Push to 8 phases
