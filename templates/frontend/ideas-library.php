@@ -93,6 +93,12 @@ if (!defined('ABSPATH')) {
             return;
         }
 
+        const ajaxUrl = plLibrary.ajaxurlRelative || plLibrary.ajaxurl || (typeof window.ajaxurl !== 'undefined' ? window.ajaxurl : '');
+        if (!ajaxUrl) {
+            console.error('Product Launch: Unable to determine AJAX URL for ideas library.');
+            return;
+        }
+
         const perPage = plLibrary.perPage ? parseInt(plLibrary.perPage, 10) : 12;
         const baseDetailsUrl = plLibrary.detailsUrl || '?idea_id=__IDEA_ID__';
         const categoryLabels = (plLibrary.categoryLabels && typeof plLibrary.categoryLabels === 'object')
@@ -151,7 +157,7 @@ if (!defined('ABSPATH')) {
             $('#pl-library-grid').html('<div class="pl-loading-grid">' + generateSkeletons() + '</div>');
 
             $.ajax({
-                url: plLibrary.ajaxurl,
+                url: ajaxUrl,
                 type: 'POST',
                 data: {
                     action: 'pl_load_library_ideas',

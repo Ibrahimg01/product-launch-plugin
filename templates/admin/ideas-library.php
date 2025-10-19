@@ -10,10 +10,6 @@ if (!defined('ABSPATH')) {
 <div class="wrap pl-ideas-library-admin">
     <h1><?php esc_html_e('Ideas Library', 'product-launch'); ?></h1>
 
-    <p class="description">
-        <?php esc_html_e('Explore pre-validated business ideas curated by the Product Launch network. Review the insights and push promising concepts directly into your 8-phase launch plan.', 'product-launch'); ?>
-    </p>
-
     <?php if (!empty($library_messages)) : ?>
         <?php foreach ($library_messages as $message) : ?>
             <div class="notice notice-<?php echo esc_attr($message['type']); ?>">
