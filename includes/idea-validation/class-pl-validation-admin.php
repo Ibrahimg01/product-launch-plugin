@@ -12,7 +12,12 @@ class PL_Validation_Admin {
     public function __construct() {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         if (is_multisite()) {
-            add_action('network_admin_menu', array($this, 'add_network_admin_menu'));
+            // Ensure the Product Launch top-level network menu is registered before
+            // we attempt to attach our validation subpages. A later priority prevents
+            // WordPress from generating fallback links like
+            // wp-admin/network/<slug> (which results in a physical file request and a 404)
+            // when the parent menu is not yet available.
+            add_action('network_admin_menu', array($this, 'add_network_admin_menu'), 20);
         }
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
