@@ -89,6 +89,14 @@ class PL_Validation_API {
 
         $local_id = $this->save_validation($user_id, $site_id, $business_idea, $data);
 
+        if (is_wp_error($local_id)) {
+            return $local_id;
+        }
+
+        if (!$local_id) {
+            return new WP_Error('pl_validation_save_failed', __('Unable to store the validation results locally. Please try again.', 'product-launch'));
+        }
+
         return array(
             'local_id' => $local_id,
             'external_id' => $data['id'],
@@ -108,6 +116,14 @@ class PL_Validation_API {
 
         $demo_data = $this->generate_demo_validation($business_idea);
         $local_id = $this->save_validation($user_id, $site_id, $business_idea, $demo_data);
+
+        if (is_wp_error($local_id)) {
+            return $local_id;
+        }
+
+        if (!$local_id) {
+            return new WP_Error('pl_validation_save_failed', __('Unable to store the demo validation results locally. Please try again.', 'product-launch'));
+        }
 
         return array(
             'local_id' => $local_id,
@@ -224,8 +240,10 @@ class PL_Validation_API {
     private function save_validation($user_id, $site_id, $business_idea, $api_data) {
         global $wpdb;
         $table = $wpdb->prefix . 'pl_validations';
-        
-        $wpdb->insert($table, array(
+
+        $this->maybe_create_validation_tables();
+
+        $inserted = $wpdb->insert($table, array(
             'user_id' => $user_id,
             'site_id' => $site_id,
             'business_idea' => $business_idea,
@@ -236,8 +254,36 @@ class PL_Validation_API {
             'enrichment_status' => isset($api_data['enriched']) && $api_data['enriched'] ? 'completed' : 'pending',
             'core_data' => wp_json_encode($api_data)
         ));
-        
-        return $wpdb->insert_id;
+
+        if (false === $inserted || empty($wpdb->insert_id)) {
+            error_log('PL Validation DB Insert Failed: ' . $wpdb->last_error);
+
+            return new WP_Error(
+                'pl_validation_save_failed',
+                __('We were unable to store the validation results locally. Please try again.', 'product-launch')
+            );
+        }
+
+        return (int) $wpdb->insert_id;
+    }
+
+    /**
+     * Ensure the validation tables exist before attempting to save data.
+     */
+    private function maybe_create_validation_tables() {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'pl_validations';
+        $table_exists = $wpdb->get_var(
+            $wpdb->prepare(
+                'SHOW TABLES LIKE %s',
+                $wpdb->esc_like($table)
+            )
+        );
+
+        if ($table_exists !== $table && function_exists('pl_create_validation_tables')) {
+            pl_create_validation_tables();
+        }
     }
     
     /**

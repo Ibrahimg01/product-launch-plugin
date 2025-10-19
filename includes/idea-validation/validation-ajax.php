@@ -19,6 +19,10 @@ function pl_ajax_test_api_connection() {
     $test_idea = 'Test connection - ' . date('Y-m-d H:i:s');
     $result = $api->submit_idea($test_idea, get_current_user_id(), get_current_blog_id());
 
+    if (is_wp_error($result)) {
+        wp_send_json_error(array('message' => $result->get_error_message()));
+    }
+
     if ($result && isset($result['external_id'])) {
         wp_send_json_success(array(
             'message' => sprintf(

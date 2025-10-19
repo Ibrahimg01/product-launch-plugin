@@ -234,6 +234,10 @@ class PL_Validation_Frontend {
         $api = new PL_Validation_API();
         $result = $api->submit_idea($business_idea, $user_id, $site_id);
 
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+
         if (!$result) {
             wp_send_json_error(array('message' => __('Failed to submit validation. Please try again.', 'product-launch')));
         }
