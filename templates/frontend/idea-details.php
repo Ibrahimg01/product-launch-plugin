@@ -62,13 +62,20 @@ $idea_id = isset($atts['id']) ? sanitize_text_field($atts['id']) : '';
             const score = idea.adjusted_score || idea.validation_score || 0;
             const scoreClass = score >= 70 ? 'high' : (score >= 40 ? 'medium' : 'low');
             const scoreColor = score >= 70 ? '#10B981' : (score >= 40 ? '#F59E0B' : '#EF4444');
+            const sourceType = idea.source_type || 'library';
+            const pushIdeaId = sourceType === 'validation'
+                ? (idea.local_validation_id || idea.validation_id || idea.id || ideaId)
+                : (idea.id || idea.external_api_id || ideaId);
+            const originBadge = idea.origin_label
+                ? '<span class="pl-detail-badge">' + escapeHtml(idea.origin_label) + '</span>'
+                : '';
 
             const buttonHtml = isLoggedIn
-                ? '<button class="button button-primary button-large pl-push-to-phases" data-idea-id="' + ideaId + '" data-source-type="library">🚀 <?php echo esc_js(__('Push to 8-Phase System', 'product-launch')); ?></button>'
+                ? '<button class="button button-primary button-large pl-push-to-phases" data-idea-id="' + escapeAttribute(pushIdeaId) + '" data-source-type="' + escapeAttribute(sourceType) + '">🚀 <?php echo esc_js(__('Push to 8-Phase System', 'product-launch')); ?></button>'
                 : '<a href="' + loginUrl + '" class="button button-primary button-large"><?php echo esc_js(__('Log In to Use This Idea', 'product-launch')); ?></a>';
 
             const ctaButton = isLoggedIn
-                ? '<button class="button button-primary button-large pl-push-to-phases" data-idea-id="' + ideaId + '" data-source-type="library"><?php echo esc_js(__('Start 8-Phase Launch Process →', 'product-launch')); ?></button>'
+                ? '<button class="button button-primary button-large pl-push-to-phases" data-idea-id="' + escapeAttribute(pushIdeaId) + '" data-source-type="' + escapeAttribute(sourceType) + '"><?php echo esc_js(__('Start 8-Phase Launch Process →', 'product-launch')); ?></button>'
                 : '<a href="' + loginUrl + '" class="button button-primary button-large"><?php echo esc_js(__('Log In to Get Started →', 'product-launch')); ?></a>';
 
             const html =
@@ -76,6 +83,7 @@ $idea_id = isset($atts['id']) ? sanitize_text_field($atts['id']) : '';
                     backLinkTemplate() +
                     '<div class="pl-detail-hero pl-score-' + scoreClass + '">' +
                         '<div class="pl-hero-content">' +
+                            originBadge +
                             '<h1>' + escapeHtml(idea.business_idea || '<?php echo esc_js(__('Business Idea', 'product-launch')); ?>') + '</h1>' +
                             (idea.validation_date ? '<p class="pl-validation-date"><?php echo esc_js(__('Validated on', 'product-launch')); ?> ' + formatDate(idea.validation_date) + '</p>' : '') +
                         '</div>' +
@@ -221,6 +229,10 @@ $idea_id = isset($atts['id']) ? sanitize_text_field($atts['id']) : '';
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
+        }
+
+        function escapeAttribute(str) {
+            return escapeHtml(str).replace(/"/g, '&quot;');
         }
     });
 })(jQuery);

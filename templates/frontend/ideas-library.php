@@ -195,6 +195,10 @@ if (!defined('ABSPATH')) {
             const truncated = ideaText.length > 120 ? ideaText.substring(0, 120) + '…' : ideaText;
 
             const detailUrl = buildDetailsUrl(ideaId);
+            const sourceType = idea.source_type || 'library';
+            const originBadge = sourceType === 'validation'
+                ? '<span class="pl-network-badge"><?php echo esc_js(__('Network Published', 'product-launch')); ?></span>'
+                : '';
 
             let tagsHtml = '';
             if (idea.classification && Array.isArray(idea.classification.industries)) {
@@ -231,8 +235,9 @@ if (!defined('ABSPATH')) {
             }
 
             return (
-                '<div class="pl-idea-card" data-id="' + escapeAttribute(ideaId) + '">' +
+                '<div class="pl-idea-card" data-id="' + escapeAttribute(ideaId) + '" data-source-type="' + escapeAttribute(sourceType) + '">' +
                     '<div class="pl-idea-header">' +
+                        originBadge +
                         '<div class="pl-idea-score pl-score-' + scoreClass + '">' +
                             '<span class="pl-score-number">' + escapeHtml(String(score)) + '</span>' +
                             '<span class="pl-score-label"><?php echo esc_js(__('Score', 'product-launch')); ?></span>' +

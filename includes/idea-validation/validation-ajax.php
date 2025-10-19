@@ -122,3 +122,32 @@ function pl_ajax_bulk_validation_action() {
         ),
     ));
 }
+
+add_action('wp_ajax_pl_toggle_validation_publish', 'pl_ajax_toggle_validation_publish');
+function pl_ajax_toggle_validation_publish() {
+    check_ajax_referer('pl_validation_admin', 'nonce');
+
+    if (!current_user_can('manage_options') && !current_user_can('manage_network_options')) {
+        wp_send_json_error(array('message' => __('Unauthorized', 'product-launch')));
+    }
+
+    $validation_id = isset($_POST['validation_id']) ? absint($_POST['validation_id']) : 0;
+    $publish = isset($_POST['publish']) ? (bool) $_POST['publish'] : false;
+
+    if (!$validation_id) {
+        wp_send_json_error(array('message' => __('Invalid validation ID', 'product-launch')));
+    }
+
+    $access = new PL_Validation_Access();
+    $result = $access->set_library_publish_status($validation_id, $publish, get_current_user_id());
+
+    if (!$result) {
+        wp_send_json_error(array('message' => __('Unable to update publish status.', 'product-launch')));
+    }
+
+    $message = $publish
+        ? __('Validation published to ideas library.', 'product-launch')
+        : __('Validation removed from ideas library.', 'product-launch');
+
+    wp_send_json_success(array('message' => $message));
+}

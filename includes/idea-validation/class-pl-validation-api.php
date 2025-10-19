@@ -252,6 +252,7 @@ class PL_Validation_API {
             'confidence_level' => $api_data['confidence_level'] ?? null,
             'validation_status' => 'completed',
             'enrichment_status' => isset($api_data['enriched']) && $api_data['enriched'] ? 'completed' : 'pending',
+            'library_published' => 0,
             'core_data' => wp_json_encode($api_data)
         ));
 
