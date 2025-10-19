@@ -1410,17 +1410,38 @@ function pl_sanitize_settings($input) {  // ✅ ADDED $input PARAMETER
 
 // Network Admin Menu - Settings only here
 add_action('network_admin_menu', function() {
-    if (is_multisite()) {
-        add_menu_page(
-            __('Product Launch Settings','product-launch'),
-            __('Product Launch','product-launch'),
-            'manage_network_options',
-            'product-launch-network-settings',
-            'pl_render_network_settings_page',
-            'dashicons-megaphone',
-            30
-        );
+    if (!is_multisite()) {
+        return;
     }
+
+    add_menu_page(
+        __('Product Launch Settings','product-launch'),
+        __('Product Launch','product-launch'),
+        'manage_network_options',
+        'product-launch-network-settings',
+        'pl_render_network_settings_page',
+        'dashicons-megaphone',
+        30
+    );
+
+    add_submenu_page(
+        'product-launch-network-settings',
+        __('Network Settings','product-launch'),
+        __('Network Settings','product-launch'),
+        'manage_network_options',
+        'product-launch-network-settings',
+        'pl_render_network_settings_page'
+    );
+
+    // Provide a familiar entry under Network Settings as well.
+    add_submenu_page(
+        'settings.php',
+        __('Product Launch','product-launch'),
+        __('Product Launch','product-launch'),
+        'manage_network_options',
+        'product-launch-network-settings',
+        'pl_render_network_settings_page'
+    );
 });
 
 
@@ -1492,7 +1513,24 @@ function pl_render_network_settings_page() {
 
 
 // Consolidated menu registration with hidden phase pages for non-super-admins
+function plc_get_phase_menu_map() {
+    return [
+        'product-launch-market'   => ['key' => 'market-clarity',     'menu' => __('Getting Market Clarity','product-launch')],
+        'product-launch-offer'    => ['key' => 'create-offer',       'menu' => __('Creating Your Offer','product-launch')],
+        'product-launch-service'  => ['key' => 'create-service',     'menu' => __('Creating Your Service','product-launch')],
+        'product-launch-funnel'   => ['key' => 'build-funnel',       'menu' => __('Building Sales Funnel','product-launch')],
+        'product-launch-emailss'  => ['key' => 'email-sequences',    'menu' => __('Writing Email Sequences','product-launch')],
+        'product-launch-organic'  => ['key' => 'organic-posts',      'menu' => __('Organic Promo Posts','product-launch')],
+        'product-launch-ads'      => ['key' => 'facebook-ads',       'menu' => __('Creating Facebook Ads','product-launch')],
+        'product-launch-launch'   => ['key' => 'launch',             'menu' => __('Launching','product-launch')],
+    ];
+}
+
 add_action('admin_menu', function() {
+    if (is_network_admin()) {
+        return;
+    }
+
     add_menu_page(
         __('Product Launch','product-launch'),
         __('Product Launch','product-launch'),
@@ -1502,10 +1540,33 @@ add_action('admin_menu', function() {
         'dashicons-megaphone',
         3
     );
-    
 
-// Alias slugs to keep backward compatibility (e.g., product-launch-emails -> email-sequences)
+    add_submenu_page(
+        'product-launch',
+        __('Dashboard','product-launch'),
+        __('Dashboard','product-launch'),
+        'read',
+        'product-launch',
+        'pl_render_dashboard'
+    );
+
+    foreach (plc_get_phase_menu_map() as $slug => $data) {
+        add_submenu_page(
+            'product-launch',
+            $data['menu'],
+            $data['menu'],
+            'read',
+            $slug,
+            function() use ($data) { plc_render_phase_router($data['key']); }
+        );
+    }
+}, 9);
+
 add_action('admin_menu', function () {
+    if (is_network_admin()) {
+        return;
+    }
+
     $aliases = [
         'product-launch-emails' => 'email-sequences',
     ];
@@ -1519,23 +1580,27 @@ add_action('admin_menu', function () {
             function() use ($phase_key) { plc_render_phase_router($phase_key); }
         );
     }
-}, 6);
+}, 9);
 
-add_submenu_page('product-launch', __('Dashboard','product-launch'), __('Dashboard','product-launch'), 'read', 'product-launch', 'pl_render_dashboard');
+add_action('admin_menu', function() {
+    if (is_network_admin()) {
+        return;
+    }
+    if (is_multisite() && is_super_admin()) return;
+    foreach (array_keys(plc_get_phase_menu_map()) as $slug) {
+        remove_submenu_page('product-launch', $slug);
+    }
+}, 100);
 
-    $plc_phases = [
-        'product-launch-market'   => ['key' => 'market-clarity',     'menu' => __('Getting Market Clarity','product-launch')],
-        'product-launch-offer'    => ['key' => 'create-offer',       'menu' => __('Creating Your Offer','product-launch')],
-        'product-launch-service'  => ['key' => 'create-service',     'menu' => __('Creating Your Service','product-launch')],
-        'product-launch-funnel'   => ['key' => 'build-funnel',       'menu' => __('Building Sales Funnel','product-launch')],
-        'product-launch-emailss'   => ['key' => 'email-sequences',    'menu' => __('Writing Email Sequences','product-launch')],
-        'product-launch-organic'  => ['key' => 'organic-posts',      'menu' => __('Organic Promo Posts','product-launch')],
-        'product-launch-ads'      => ['key' => 'facebook-ads',       'menu' => __('Creating Facebook Ads','product-launch')],
-        'product-launch-launch'   => ['key' => 'launch',             'menu' => __('Launching','product-launch')],
-    ];
-    foreach ($plc_phases as $slug => $data) {
+add_action('admin_menu', function () {
+    if (is_network_admin()) {
+        return;
+    }
+
+    foreach (plc_get_phase_menu_map() as $slug => $data) {
+        // Register a hidden page with no parent; keeps route working even if submenu entries are removed
         add_submenu_page(
-            'product-launch',
+            null,
             $data['menu'],
             $data['menu'],
             'read',
@@ -1543,46 +1608,15 @@ add_submenu_page('product-launch', __('Dashboard','product-launch'), __('Dashboa
             function() use ($data) { plc_render_phase_router($data['key']); }
         );
     }
-}, 9);
+}, 5);
 
-// Hide phase pages from submenu for non-super-admins (but keep accessible)
-add_action('admin_menu', function() {
-    if (is_multisite() && is_super_admin()) return;
-    $phases = [
-        'product-launch-market',
-        'product-launch-offer',
-        'product-launch-service',
-        'product-launch-funnel',
-        'product-launch-emailss',
-        'product-launch-organic',
-        'product-launch-ads',
-        'product-launch-launch',
-    ];
-    foreach ($phases as $slug) {
-        remove_submenu_page('product-launch', $slug);
-    }
-}, 100);
-
-
-// Ensure phase pages are registered as hidden pages too (so URL access never fails)
-add_action('admin_menu', function () {
-    $plc_phases = [
-        'product-launch-market'   => ['key' => 'market-clarity',     'menu' => __('Getting Market Clarity','product-launch')],
-        'product-launch-offer'    => ['key' => 'create-offer',       'menu' => __('Creating Your Offer','product-launch')],
-        'product-launch-service'  => ['key' => 'create-service',     'menu' => __('Creating Your Service','product-launch')],
-        'product-launch-funnel'   => ['key' => 'build-funnel',       'menu' => __('Building Sales Funnel','product-launch')],
-        'product-launch-emailss'   => ['key' => 'email-sequences',    'menu' => __('Writing Email Sequences','product-launch')],
-        'product-launch-organic'  => ['key' => 'organic-posts',      'menu' => __('Organic Promo Posts','product-launch')],
-        'product-launch-ads'      => ['key' => 'facebook-ads',       'menu' => __('Creating Facebook Ads','product-launch')],
-        'product-launch-launch'   => ['key' => 'launch',             'menu' => __('Launching','product-launch')],
-    ];
-    foreach ($plc_phases as $slug => $data) {
-        // Register a hidden page with no parent; keeps route working even if submenu entries are removed
+add_action('network_admin_menu', function () {
+    foreach (plc_get_phase_menu_map() as $slug => $data) {
         add_submenu_page(
             null,
             $data['menu'],
             $data['menu'],
-            'read',
+            'manage_network_options',
             $slug,
             function() use ($data) { plc_render_phase_router($data['key']); }
         );
