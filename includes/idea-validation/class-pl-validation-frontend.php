@@ -23,7 +23,7 @@ class PL_Validation_Frontend {
      * Enqueue frontend assets
      */
     public function enqueue_frontend_assets() {
-        if (!is_admin()) {
+        if (!is_admin() && is_user_logged_in()) {
             wp_enqueue_style(
                 'pl-validation-frontend',
                 PL_PLUGIN_URL . 'assets/css/validation-frontend.css',
@@ -60,6 +60,12 @@ class PL_Validation_Frontend {
      * Render validation form shortcode
      */
     public function render_validation_form($atts) {
+        if (!is_user_logged_in()) {
+            return $this->render_backend_login_message(
+                __('Idea validation is available from the Product Launch backend. Please log in to continue.', 'product-launch')
+            );
+        }
+
         $atts = shortcode_atts(array(
             'title' => __('Validate Your Business Idea', 'product-launch'),
             'show_quota' => 'yes',
@@ -76,10 +82,9 @@ class PL_Validation_Frontend {
      */
     public function render_my_validations($atts) {
         if (!is_user_logged_in()) {
-            return '<div class="pl-login-required">
-                <p>' . __('Please log in to view your validations.', 'product-launch') . '</p>
-                <a href="' . wp_login_url(get_permalink()) . '" class="button">' . __('Log In', 'product-launch') . '</a>
-            </div>';
+            return $this->render_backend_login_message(
+                __('Please log in to your Product Launch backend to view validations.', 'product-launch')
+            );
         }
 
         $atts = shortcode_atts(array(
@@ -116,10 +121,9 @@ class PL_Validation_Frontend {
         }
 
         if (!is_user_logged_in()) {
-            return '<div class="pl-login-required">
-                <p>' . __('Please log in to view this validation report.', 'product-launch') . '</p>
-                <a href="' . wp_login_url(get_permalink()) . '" class="button">' . __('Log In', 'product-launch') . '</a>
-            </div>';
+            return $this->render_backend_login_message(
+                __('Please log in to your Product Launch backend to view validation reports.', 'product-launch')
+            );
         }
 
         $access = new PL_Validation_Access();
@@ -218,6 +222,21 @@ class PL_Validation_Frontend {
             'score' => $validation->validation_score,
             'enrichment_status' => $validation->enrichment_status
         ));
+    }
+
+    /**
+     * Render a standard login required message for backend-only features.
+     *
+     * @param string $message Custom message to display.
+     * @return string
+     */
+    private function render_backend_login_message($message) {
+        $login_url = wp_login_url(admin_url());
+
+        return '<div class="pl-login-required">'
+            . '<p>' . esc_html($message) . '</p>'
+            . '<a href="' . esc_url($login_url) . '" class="button">' . esc_html__('Log In', 'product-launch') . '</a>'
+            . '</div>';
     }
 }
 
