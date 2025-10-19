@@ -32,17 +32,16 @@ if (!defined('ABSPATH')) {
                     </div>
 
                     <div class="pl-filter-selects">
-                        <select id="pl-category-filter" class="pl-filter-select">
-                            <option value=""><?php esc_html_e('All Categories', 'product-launch'); ?></option>
-                            <option value="saas"><?php esc_html_e('SaaS', 'product-launch'); ?></option>
-                            <option value="marketplace"><?php esc_html_e('Marketplace', 'product-launch'); ?></option>
-                            <option value="ecommerce"><?php esc_html_e('E-commerce', 'product-launch'); ?></option>
-                            <option value="ai-ml"><?php esc_html_e('AI/ML', 'product-launch'); ?></option>
-                            <option value="mobile"><?php esc_html_e('Mobile App', 'product-launch'); ?></option>
-                            <option value="productivity"><?php esc_html_e('Productivity', 'product-launch'); ?></option>
-                            <option value="education"><?php esc_html_e('Education', 'product-launch'); ?></option>
-                            <option value="health"><?php esc_html_e('Health & Wellness', 'product-launch'); ?></option>
-                        </select>
+                        <?php if (!empty($categories) && is_array($categories)) : ?>
+                            <select id="pl-category-filter" class="pl-filter-select">
+                                <option value=""><?php esc_html_e('All Categories', 'product-launch'); ?></option>
+                                <?php foreach ($categories as $category) : ?>
+                                    <option value="<?php echo esc_attr($category['slug']); ?>">
+                                        <?php echo esc_html($category['label']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        <?php endif; ?>
 
                         <select id="pl-sort-filter" class="pl-filter-select">
                             <option value="score_desc"><?php esc_html_e('Highest Score', 'product-launch'); ?></option>
@@ -96,12 +95,19 @@ if (!defined('ABSPATH')) {
 
         const perPage = plLibrary.perPage ? parseInt(plLibrary.perPage, 10) : 12;
         const baseDetailsUrl = plLibrary.detailsUrl || '?idea_id=__IDEA_ID__';
+        const categoryLabels = (plLibrary.categoryLabels && typeof plLibrary.categoryLabels === 'object')
+            ? plLibrary.categoryLabels
+            : {};
+        const categorySelect = $('#pl-category-filter');
+        const sortSelect = $('#pl-sort-filter');
+        const categoryFilterEnabled = categorySelect.length > 0;
+        const defaultSort = sortSelect.val() || 'score_desc';
 
         let currentPage = 1;
         let currentFilters = {
             search: '',
-            category: '',
-            sort: 'score_desc'
+            category: categoryFilterEnabled ? (categorySelect.val() || '') : '',
+            sort: defaultSort
         };
 
         loadIdeas();
@@ -119,17 +125,19 @@ if (!defined('ABSPATH')) {
         });
 
         $('#pl-category-filter, #pl-sort-filter').on('change', function() {
-            currentFilters.category = $('#pl-category-filter').val();
-            currentFilters.sort = $('#pl-sort-filter').val();
+            currentFilters.category = categoryFilterEnabled ? (categorySelect.val() || '') : '';
+            currentFilters.sort = sortSelect.val();
             currentPage = 1;
             loadIdeas();
         });
 
         $(document).on('click', '.pl-clear-filters', function() {
             $('#pl-library-search').val('');
-            $('#pl-category-filter').val('');
-            $('#pl-sort-filter').val('score_desc');
-            currentFilters = { search: '', category: '', sort: 'score_desc' };
+            if (categoryFilterEnabled) {
+                categorySelect.val('');
+            }
+            sortSelect.val(defaultSort);
+            currentFilters = { search: '', category: '', sort: defaultSort };
             currentPage = 1;
             loadIdeas();
         });
@@ -148,7 +156,7 @@ if (!defined('ABSPATH')) {
                     min_score: plLibrary.minScore,
                     enriched_only: plLibrary.enrichedOnly,
                     search: currentFilters.search,
-                    category: currentFilters.category,
+                    category: categoryFilterEnabled ? currentFilters.category : '',
                     sort: currentFilters.sort
                 }
             }).done(function(response) {
@@ -196,12 +204,15 @@ if (!defined('ABSPATH')) {
 
             const detailUrl = buildDetailsUrl(ideaId);
             const sourceType = idea.source_type || 'library';
-            const originBadge = sourceType === 'validation'
-                ? '<span class="pl-network-badge"><?php echo esc_js(__('Network Published', 'product-launch')); ?></span>'
-                : '';
 
             let tagsHtml = '';
-            if (idea.classification && Array.isArray(idea.classification.industries)) {
+            if (Array.isArray(idea.category_labels) && idea.category_labels.length) {
+                tagsHtml = '<div class="pl-idea-tags">' +
+                    idea.category_labels.slice(0, 3).map(function(label) {
+                        return '<span class="pl-tag">' + escapeHtml(label) + '</span>';
+                    }).join('') +
+                    '</div>';
+            } else if (idea.classification && Array.isArray(idea.classification.industries)) {
                 tagsHtml = '<div class="pl-idea-tags">' +
                     idea.classification.industries.slice(0, 3).map(function(ind) {
                         return '<span class="pl-tag">' + escapeHtml(ind) + '</span>';
@@ -237,7 +248,6 @@ if (!defined('ABSPATH')) {
             return (
                 '<div class="pl-idea-card" data-id="' + escapeAttribute(ideaId) + '" data-source-type="' + escapeAttribute(sourceType) + '">' +
                     '<div class="pl-idea-header">' +
-                        originBadge +
                         '<div class="pl-idea-score pl-score-' + scoreClass + '">' +
                             '<span class="pl-score-number">' + escapeHtml(String(score)) + '</span>' +
                             '<span class="pl-score-label"><?php echo esc_js(__('Score', 'product-launch')); ?></span>' +
@@ -359,7 +369,7 @@ if (!defined('ABSPATH')) {
         }
 
         function updateActiveFilters() {
-            const hasFilters = (currentFilters.search && currentFilters.search.length) || currentFilters.category;
+            const hasFilters = (currentFilters.search && currentFilters.search.length) || (categoryFilterEnabled && currentFilters.category);
 
             if (!hasFilters) {
                 $('#pl-active-filters').hide();
@@ -370,8 +380,9 @@ if (!defined('ABSPATH')) {
             if (currentFilters.search) {
                 html += '<span class="pl-filter-tag"><?php echo esc_js(__('Search:', 'product-launch')); ?> "' + escapeHtml(currentFilters.search) + '"</span>';
             }
-            if (currentFilters.category) {
-                html += '<span class="pl-filter-tag"><?php echo esc_js(__('Category:', 'product-launch')); ?> ' + escapeHtml(currentFilters.category) + '</span>';
+            if (categoryFilterEnabled && currentFilters.category) {
+                const label = categoryLabels[currentFilters.category] || currentFilters.category;
+                html += '<span class="pl-filter-tag"><?php echo esc_js(__('Category:', 'product-launch')); ?> ' + escapeHtml(label) + '</span>';
             }
 
             $('#pl-active-filters .pl-filter-tags-list').html(html);
