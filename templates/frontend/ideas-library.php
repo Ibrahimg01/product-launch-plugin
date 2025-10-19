@@ -32,16 +32,16 @@ if (!defined('ABSPATH')) {
                     </div>
 
                     <div class="pl-filter-selects">
-                        <?php if (!empty($categories) && is_array($categories)) : ?>
-                            <select id="pl-category-filter" class="pl-filter-select">
-                                <option value=""><?php esc_html_e('All Categories', 'product-launch'); ?></option>
+                        <select id="pl-category-filter" class="pl-filter-select">
+                            <option value=""><?php esc_html_e('All Categories', 'product-launch'); ?></option>
+                            <?php if (!empty($categories) && is_array($categories)) : ?>
                                 <?php foreach ($categories as $category) : ?>
                                     <option value="<?php echo esc_attr($category['slug']); ?>">
                                         <?php echo esc_html($category['label']); ?>
                                     </option>
                                 <?php endforeach; ?>
-                            </select>
-                        <?php endif; ?>
+                            <?php endif; ?>
+                        </select>
 
                         <select id="pl-sort-filter" class="pl-filter-select">
                             <option value="score_desc"><?php esc_html_e('Highest Score', 'product-launch'); ?></option>
@@ -98,10 +98,6 @@ if (!defined('ABSPATH')) {
         const categoryLabels = (plLibrary.categoryLabels && typeof plLibrary.categoryLabels === 'object')
             ? plLibrary.categoryLabels
             : {};
-        const categorySelect = $('#pl-category-filter');
-        const sortSelect = $('#pl-sort-filter');
-        const categoryFilterEnabled = categorySelect.length > 0;
-        const defaultSort = sortSelect.val() || 'score_desc';
 
         let currentPage = 1;
         let currentFilters = {
@@ -380,7 +376,7 @@ if (!defined('ABSPATH')) {
             if (currentFilters.search) {
                 html += '<span class="pl-filter-tag"><?php echo esc_js(__('Search:', 'product-launch')); ?> "' + escapeHtml(currentFilters.search) + '"</span>';
             }
-            if (categoryFilterEnabled && currentFilters.category) {
+            if (currentFilters.category) {
                 const label = categoryLabels[currentFilters.category] || currentFilters.category;
                 html += '<span class="pl-filter-tag"><?php echo esc_js(__('Category:', 'product-launch')); ?> ' + escapeHtml(label) + '</span>';
             }
