@@ -151,3 +151,75 @@ function pl_ajax_toggle_validation_publish() {
 
     wp_send_json_success(array('message' => $message));
 }
+
+add_action('wp_ajax_pl_network_search_ideas', 'pl_ajax_network_search_ideas');
+function pl_ajax_network_search_ideas() {
+    check_ajax_referer('pl_validation_network', 'nonce');
+
+    if (!current_user_can('manage_network_options')) {
+        wp_send_json_error(array('message' => __('Unauthorized', 'product-launch')));
+    }
+
+    $query = isset($_POST['query']) ? sanitize_text_field(wp_unslash($_POST['query'])) : '';
+    $limit = isset($_POST['limit']) ? max(1, min((int) $_POST['limit'], 25)) : 10;
+    $min_score = isset($_POST['min_score']) ? (int) $_POST['min_score'] : 0;
+    $enriched_only = isset($_POST['enriched_only']) ? (bool) absint($_POST['enriched_only']) : false;
+
+    $api = new PL_Validation_API();
+    $args = array(
+        'limit' => $limit,
+    );
+
+    if ($min_score > 0) {
+        $args['min_score'] = $min_score;
+    }
+
+    if ($enriched_only) {
+        $args['enriched_only'] = true;
+    }
+
+    $results = $api->search_prevalidated_ideas($query, $args);
+
+    if (is_wp_error($results)) {
+        wp_send_json_error(array('message' => $results->get_error_message()));
+    }
+
+    wp_send_json_success($results);
+}
+
+add_action('wp_ajax_pl_network_push_idea', 'pl_ajax_network_push_idea');
+function pl_ajax_network_push_idea() {
+    check_ajax_referer('pl_validation_network', 'nonce');
+
+    if (!current_user_can('manage_network_options')) {
+        wp_send_json_error(array('message' => __('Unauthorized', 'product-launch')));
+    }
+
+    $idea_payload = isset($_POST['idea']) ? wp_unslash($_POST['idea']) : '';
+
+    if (empty($idea_payload)) {
+        wp_send_json_error(array('message' => __('No idea payload supplied.', 'product-launch')));
+    }
+
+    $decoded = json_decode($idea_payload, true);
+
+    if (!is_array($decoded)) {
+        wp_send_json_error(array('message' => __('Unable to process the supplied idea payload.', 'product-launch')));
+    }
+
+    $api = new PL_Validation_API();
+    $result = $api->create_validation_from_idea($decoded, get_current_user_id(), get_current_blog_id(), true);
+
+    if (is_wp_error($result)) {
+        wp_send_json_error(array('message' => $result->get_error_message()));
+    }
+
+    if (function_exists('pl_clear_library_cache')) {
+        pl_clear_library_cache();
+    }
+
+    wp_send_json_success(array(
+        'validation_id' => (int) $result,
+        'message' => __('Idea pushed to the network ideas library.', 'product-launch'),
+    ));
+}
