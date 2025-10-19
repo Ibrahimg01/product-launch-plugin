@@ -87,4 +87,19 @@ if (!defined('ABSPATH')) {
             </div>
         </aside>
     </div>
+
+    <div id="pl-network-idea-modal" class="pl-network-idea-modal" aria-hidden="true">
+        <div class="pl-network-idea-modal__overlay" role="presentation"></div>
+        <div class="pl-network-idea-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="pl-network-idea-modal-title">
+            <button type="button" class="pl-network-idea-modal__close" aria-label="<?php esc_attr_e('Close report', 'product-launch'); ?>">&times;</button>
+            <div class="pl-network-idea-modal__body">
+                <div class="pl-network-idea-modal__content">
+                    <header class="pl-network-idea-modal__header">
+                        <h2 id="pl-network-idea-modal-title"><?php esc_html_e('Idea report', 'product-launch'); ?></h2>
+                        <p class="description"><?php esc_html_e('Select an idea to review the full discovery report.', 'product-launch'); ?></p>
+                    </header>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

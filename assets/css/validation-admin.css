@@ -550,6 +550,217 @@
     box-shadow: 0 8px 16px rgba(37, 99, 235, 0.18);
 }
 
+.pl-network-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.pl-network-actions .button {
+    flex: 0 1 auto;
+}
+
+.pl-network-idea-modal {
+    display: none;
+}
+
+.pl-network-idea-modal.is-visible {
+    display: block;
+}
+
+.pl-network-idea-modal__overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.55);
+    z-index: 100000;
+}
+
+.pl-network-idea-modal__dialog {
+    position: fixed;
+    inset: 5% auto auto;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(960px, calc(100% - 3rem));
+    max-height: calc(100% - 6rem);
+    overflow-y: auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgba(30, 41, 59, 0.45);
+    padding: 2rem 2.5rem;
+    z-index: 100001;
+}
+
+.pl-network-idea-modal__close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    border: none;
+    background: transparent;
+    color: #111827;
+    font-size: 1.75rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.pl-network-idea-modal__header h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.6rem;
+}
+
+.pl-network-idea-modal__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.pl-network-idea-modal__score {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 600;
+    text-align: center;
+}
+
+.pl-network-idea-modal__score.pl-score-high {
+    background: #10b981;
+}
+
+.pl-network-idea-modal__score.pl-score-medium {
+    background: #f59e0b;
+}
+
+.pl-network-idea-modal__score.pl-score-low {
+    background: #ef4444;
+}
+
+.pl-network-idea-modal__score-value {
+    font-size: 1.6rem;
+    line-height: 1;
+}
+
+.pl-network-idea-modal__score-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.pl-network-idea-modal__confidence,
+.pl-network-idea-modal__generated {
+    font-size: 0.95rem;
+    color: #4b5563;
+}
+
+.pl-network-idea-modal__tags {
+    margin-bottom: 1.5rem;
+}
+
+.pl-network-idea-modal__tag {
+    display: inline-block;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: #f3f4f6;
+    font-size: 0.8rem;
+    color: #374151;
+}
+
+.pl-network-idea-modal__body-content {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.pl-network-idea-modal__section h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.1rem;
+}
+
+.pl-network-idea-modal__section p {
+    margin: 0;
+    line-height: 1.6;
+    color: #1f2937;
+}
+
+.pl-network-idea-modal__metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+}
+
+.pl-network-idea-modal__metric {
+    padding: 0.9rem;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.pl-network-idea-modal__metric-label {
+    display: block;
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin-bottom: 0.35rem;
+}
+
+.pl-network-idea-modal__metric-value {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.pl-network-idea-modal__list {
+    margin: 0;
+    padding-left: 1.2rem;
+}
+
+.pl-network-idea-modal__list li {
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+}
+
+.pl-network-idea-modal__empty {
+    padding: 1.25rem;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    color: #4b5563;
+    font-size: 0.95rem;
+}
+
+body.pl-network-modal-open {
+    overflow: hidden;
+}
+
+@media (max-width: 782px) {
+    .pl-network-actions {
+        flex-direction: column;
+    }
+
+    .pl-network-actions .button {
+        width: 100%;
+    }
+
+    .pl-network-idea-modal__dialog {
+        inset: 0;
+        top: 2.5rem;
+        width: calc(100% - 2rem);
+        height: auto;
+        max-height: calc(100% - 5rem);
+        padding: 1.5rem;
+    }
+
+    .pl-network-idea-modal__score {
+        width: 70px;
+        height: 70px;
+    }
+}
+
 @media (max-width: 900px) {
     .pl-network-validation__layout {
         grid-template-columns: 1fr;
