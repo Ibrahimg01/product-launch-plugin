@@ -317,6 +317,12 @@ class PL_Validation_API {
 
         $normalized = $this->normalize_search_result($idea_data);
 
+        $table_context = 'site';
+
+        if (is_multisite() && $publish_to_library) {
+            $table_context = 'network';
+        }
+
         if (empty($normalized['business_idea'])) {
             return new WP_Error('pl_validation_missing_business_idea', __('Unable to determine the business idea from the supplied data.', 'product-launch'));
         }
@@ -324,10 +330,10 @@ class PL_Validation_API {
         $external_id = isset($normalized['id']) ? $normalized['id'] : '';
 
         if (!empty($external_id)) {
-            $existing_id = $this->get_validation_id_by_external($external_id);
+            $existing_id = $this->get_validation_id_by_external($external_id, $table_context);
 
             if ($existing_id) {
-                $updated = $this->update_validation_from_array($existing_id, $normalized, $publish_to_library);
+                $updated = $this->update_validation_from_array($existing_id, $normalized, $publish_to_library, $table_context);
 
                 if (is_wp_error($updated)) {
                     return $updated;
@@ -337,7 +343,7 @@ class PL_Validation_API {
             }
         }
 
-        $result = $this->save_validation($user_id, $site_id, $normalized['business_idea'], $normalized, $publish_to_library);
+        $result = $this->save_validation($user_id, $site_id, $normalized['business_idea'], $normalized, $publish_to_library, $table_context);
 
         if (is_wp_error($result)) {
             return $result;
@@ -387,11 +393,14 @@ class PL_Validation_API {
     /**
      * Save validation to local database
      */
-    private function save_validation($user_id, $site_id, $business_idea, $api_data, $publish_to_library = false) {
+    private function save_validation($user_id, $site_id, $business_idea, $api_data, $publish_to_library = false, $context = 'site') {
         global $wpdb;
-        $table = $wpdb->prefix . 'pl_validations';
+        $table_context = ('network' === $context) ? 'network' : (is_multisite() ? (int) $site_id : 'site');
+        $table = pl_get_validation_table_name($table_context);
 
-        $this->maybe_create_validation_tables();
+        if ('site' === $context) {
+            $this->maybe_create_validation_tables();
+        }
 
         $inserted = $wpdb->insert($table, array(
             'user_id' => $user_id,
@@ -428,10 +437,10 @@ class PL_Validation_API {
      *
      * @return int|WP_Error
      */
-    private function update_validation_from_array($validation_id, $api_data, $publish_to_library = false) {
+    private function update_validation_from_array($validation_id, $api_data, $publish_to_library = false, $context = 'site') {
         global $wpdb;
-
-        $table = $wpdb->prefix . 'pl_validations';
+        $table_context = ('network' === $context) ? 'network' : (is_multisite() ? get_current_blog_id() : 'site');
+        $table = pl_get_validation_table_name($table_context);
 
         $update = array(
             'business_idea' => $api_data['business_idea'] ?? '',
@@ -463,7 +472,7 @@ class PL_Validation_API {
      *
      * @return int Validation ID or 0 when not found.
      */
-    private function get_validation_id_by_external($external_id) {
+    private function get_validation_id_by_external($external_id, $context = 'site') {
         $external_id = trim((string) $external_id);
 
         if ('' === $external_id) {
@@ -471,7 +480,8 @@ class PL_Validation_API {
         }
 
         global $wpdb;
-        $table = $wpdb->prefix . 'pl_validations';
+        $table_context = ('network' === $context) ? 'network' : (is_multisite() ? get_current_blog_id() : 'site');
+        $table = pl_get_validation_table_name($table_context);
 
         $found = $wpdb->get_var($wpdb->prepare(
             "SELECT id FROM $table WHERE external_api_id = %s LIMIT 1",
@@ -776,43 +786,49 @@ class PL_Validation_API {
      */
     private function cache_enrichment_section($external_id, $section, $data) {
         global $wpdb;
-        
-        $table_validations = $wpdb->prefix . 'pl_validations';
-        $validation_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM $table_validations WHERE external_api_id = %s",
-            $external_id
-        ));
-        
-        if (!$validation_id) {
-            return false;
-        }
-        
-        $table_enrichment = $wpdb->prefix . 'pl_validation_enrichment';
-        
-        $exists = $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM $table_enrichment WHERE validation_id = %d AND section_type = %s",
-            $validation_id,
-            $section
-        ));
-        
-        if ($exists) {
-            $wpdb->update(
-                $table_enrichment,
-                array(
-                    'section_data' => wp_json_encode($data),
-                    'fetched_at' => current_time('mysql')
-                ),
-                array('id' => $exists)
-            );
-        } else {
-            $wpdb->insert($table_enrichment, array(
-                'validation_id' => $validation_id,
-                'section_type' => $section,
-                'section_data' => wp_json_encode($data)
+
+        $contexts = is_multisite() ? array('network', 'site') : array('site');
+
+        foreach ($contexts as $context) {
+            $table_validations = pl_get_validation_table_name($context);
+            $validation_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM $table_validations WHERE external_api_id = %s",
+                $external_id
             ));
+
+            if (!$validation_id) {
+                continue;
+            }
+
+            $table_enrichment = pl_get_validation_enrichment_table_name($context);
+
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM $table_enrichment WHERE validation_id = %d AND section_type = %s",
+                $validation_id,
+                $section
+            ));
+
+            if ($exists) {
+                $wpdb->update(
+                    $table_enrichment,
+                    array(
+                        'section_data' => wp_json_encode($data),
+                        'fetched_at' => current_time('mysql')
+                    ),
+                    array('id' => $exists)
+                );
+            } else {
+                $wpdb->insert($table_enrichment, array(
+                    'validation_id' => $validation_id,
+                    'section_type' => $section,
+                    'section_data' => wp_json_encode($data)
+                ));
+            }
+
+            return true;
         }
-        
-        return true;
+
+        return false;
     }
     
     /**
@@ -820,25 +836,33 @@ class PL_Validation_API {
      */
     public function get_cached_section($external_id, $section) {
         global $wpdb;
-        
-        $table_validations = $wpdb->prefix . 'pl_validations';
-        $table_enrichment = $wpdb->prefix . 'pl_validation_enrichment';
-        
-        $validation_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM $table_validations WHERE external_api_id = %s",
-            $external_id
-        ));
-        
-        if (!$validation_id) {
-            return null;
+
+        $contexts = is_multisite() ? array('network', 'site') : array('site');
+
+        foreach ($contexts as $context) {
+            $table_validations = pl_get_validation_table_name($context);
+            $table_enrichment = pl_get_validation_enrichment_table_name($context);
+
+            $validation_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM $table_validations WHERE external_api_id = %s",
+                $external_id
+            ));
+
+            if (!$validation_id) {
+                continue;
+            }
+
+            $cached = $wpdb->get_var($wpdb->prepare(
+                "SELECT section_data FROM $table_enrichment WHERE validation_id = %d AND section_type = %s",
+                $validation_id,
+                $section
+            ));
+
+            if ($cached) {
+                return json_decode($cached, true);
+            }
         }
-        
-        $cached = $wpdb->get_var($wpdb->prepare(
-            "SELECT section_data FROM $table_enrichment WHERE validation_id = %d AND section_type = %s",
-            $validation_id,
-            $section
-        ));
-        
-        return $cached ? json_decode($cached, true) : null;
+
+        return null;
     }
 }

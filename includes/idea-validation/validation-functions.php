@@ -6,6 +6,52 @@
 if (!defined('ABSPATH')) exit;
 
 /**
+ * Retrieve the appropriate validations table name based on context.
+ *
+ * @param string|int $context Table context. Accepts 'site', 'network', or a site ID.
+ *
+ * @return string
+ */
+function pl_get_validation_table_name($context = 'site') {
+    global $wpdb;
+
+    if (is_multisite()) {
+        if ('network' === $context) {
+            return $wpdb->base_prefix . 'pl_validations';
+        }
+
+        if (is_numeric($context)) {
+            return $wpdb->get_blog_prefix((int) $context) . 'pl_validations';
+        }
+    }
+
+    return $wpdb->prefix . 'pl_validations';
+}
+
+/**
+ * Retrieve the appropriate validation enrichment table name based on context.
+ *
+ * @param string|int $context Table context. Accepts 'site', 'network', or a site ID.
+ *
+ * @return string
+ */
+function pl_get_validation_enrichment_table_name($context = 'site') {
+    global $wpdb;
+
+    if (is_multisite()) {
+        if ('network' === $context) {
+            return $wpdb->base_prefix . 'pl_validation_enrichment';
+        }
+
+        if (is_numeric($context)) {
+            return $wpdb->get_blog_prefix((int) $context) . 'pl_validation_enrichment';
+        }
+    }
+
+    return $wpdb->prefix . 'pl_validation_enrichment';
+}
+
+/**
  * Retrieve validation setting with multisite awareness.
  */
 function pl_get_validation_option($option_name, $default = '') {

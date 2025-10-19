@@ -22,12 +22,25 @@ class PL_Validation_Access {
         }
         
         global $wpdb;
-        $table = $wpdb->prefix . 'pl_validations';
+        $tables = array(pl_get_validation_table_name('site'));
 
-        $record = $wpdb->get_row($wpdb->prepare(
-            "SELECT user_id, library_published FROM $table WHERE id = %d",
-            $validation_id
-        ));
+        if (is_multisite()) {
+            $tables[] = pl_get_validation_table_name('network');
+            $tables = array_unique($tables);
+        }
+
+        $record = null;
+
+        foreach ($tables as $table) {
+            $record = $wpdb->get_row($wpdb->prepare(
+                "SELECT user_id, library_published FROM $table WHERE id = %d",
+                $validation_id
+            ));
+
+            if ($record) {
+                break;
+            }
+        }
 
         if (!$record) {
             return false;
@@ -60,15 +73,27 @@ class PL_Validation_Access {
         }
         
         global $wpdb;
-        $table = $wpdb->prefix . 'pl_validations';
-        
-        $owner_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT user_id FROM $table WHERE id = %d",
-            $validation_id
-        ));
-        
-        // Only owner can edit
-        return $owner_id == $user_id;
+
+        $tables = array(pl_get_validation_table_name('site'));
+
+        if (is_multisite()) {
+            $tables[] = pl_get_validation_table_name('network');
+            $tables = array_unique($tables);
+        }
+
+        foreach ($tables as $table) {
+            $owner_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT user_id FROM $table WHERE id = %d",
+                $validation_id
+            ));
+
+            if (null !== $owner_id) {
+                // Only owner can edit
+                return (int) $owner_id === (int) $user_id;
+            }
+        }
+
+        return false;
     }
     
     /**
@@ -148,7 +173,7 @@ class PL_Validation_Access {
         $args = wp_parse_args($args, $defaults);
 
         global $wpdb;
-        $table = $wpdb->prefix . 'pl_validations';
+        $table = pl_get_validation_table_name(is_multisite() ? 'network' : 'site');
 
         $where = "WHERE library_published = 1 AND validation_status = 'completed'";
 
@@ -186,12 +211,25 @@ class PL_Validation_Access {
         }
         
         global $wpdb;
-        $table = $wpdb->prefix . 'pl_validations';
-        
-        return $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $table WHERE id = %d",
-            $validation_id
-        ));
+        $tables = array(pl_get_validation_table_name('site'));
+
+        if (is_multisite()) {
+            $tables[] = pl_get_validation_table_name('network');
+            $tables = array_unique($tables);
+        }
+
+        foreach ($tables as $table) {
+            $record = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM $table WHERE id = %d",
+                $validation_id
+            ));
+
+            if ($record) {
+                return $record;
+            }
+        }
+
+        return false;
     }
     
     /**
