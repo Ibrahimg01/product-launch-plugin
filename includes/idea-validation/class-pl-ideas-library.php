@@ -24,10 +24,8 @@ class PL_Ideas_Library {
         add_shortcode('pl_idea_details', array($this, 'render_idea_details'));
 
         add_action('wp_ajax_pl_load_library_ideas', array($this, 'ajax_load_ideas'));
-        add_action('wp_ajax_nopriv_pl_load_library_ideas', array($this, 'ajax_load_ideas'));
 
         add_action('wp_ajax_pl_get_idea_details', array($this, 'ajax_get_idea_details'));
-        add_action('wp_ajax_nopriv_pl_get_idea_details', array($this, 'ajax_get_idea_details'));
 
         add_action('wp_ajax_pl_push_to_phases', array($this, 'ajax_push_to_phases'));
 
@@ -45,6 +43,12 @@ class PL_Ideas_Library {
      * @return string
      */
     public function render_library($atts) {
+        if (!is_user_logged_in()) {
+            return $this->render_backend_login_message(
+                __('Please log in to your Product Launch backend to browse the ideas library.', 'product-launch')
+            );
+        }
+
         $atts = shortcode_atts(array(
             'per_page' => 12,
             'show_filters' => 'yes',
@@ -80,6 +84,12 @@ class PL_Ideas_Library {
      * @return string
      */
     public function render_idea_details($atts) {
+        if (!is_user_logged_in()) {
+            return $this->render_backend_login_message(
+                __('Please log in to your Product Launch backend to view idea details.', 'product-launch')
+            );
+        }
+
         $atts = shortcode_atts(array(
             'id' => isset($_GET['idea_id']) ? sanitize_text_field(wp_unslash($_GET['idea_id'])) : '',
         ), $atts);
@@ -110,6 +120,10 @@ class PL_Ideas_Library {
      */
     public function ajax_load_ideas() {
         check_ajax_referer('pl_library', 'nonce');
+
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => esc_html__('Authentication required.', 'product-launch')));
+        }
 
         $page = isset($_POST['page']) ? max(1, (int) $_POST['page']) : 1;
         $per_page = isset($_POST['per_page']) ? max(1, min(50, (int) $_POST['per_page'])) : 12;
@@ -163,6 +177,10 @@ class PL_Ideas_Library {
     public function ajax_get_idea_details() {
         check_ajax_referer('pl_library', 'nonce');
 
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => esc_html__('Authentication required.', 'product-launch')));
+        }
+
         $idea_id = isset($_POST['idea_id']) ? sanitize_text_field(wp_unslash($_POST['idea_id'])) : '';
 
         if (empty($idea_id)) {
@@ -176,6 +194,21 @@ class PL_Ideas_Library {
         }
 
         wp_send_json_success(array('idea' => $idea));
+    }
+
+    /**
+     * Render a login required message for backend-only views.
+     *
+     * @param string $message Notice message.
+     * @return string
+     */
+    private function render_backend_login_message($message) {
+        $login_url = wp_login_url(admin_url());
+
+        return '<div class="pl-login-required">'
+            . '<p>' . esc_html($message) . '</p>'
+            . '<a href="' . esc_url($login_url) . '" class="button">' . esc_html__('Log In', 'product-launch') . '</a>'
+            . '</div>';
     }
 
     /**
