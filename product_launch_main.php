@@ -1622,6 +1622,39 @@ add_action('network_admin_menu', function () {
         );
     }
 }, 5);
+
+add_action('network_admin_init', function () {
+    if (isset($_GET['page'])) {
+        return;
+    }
+
+    $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+    if (empty($request_uri)) {
+        return;
+    }
+
+    $path = wp_parse_url($request_uri, PHP_URL_PATH);
+    if (!$path) {
+        return;
+    }
+
+    $target = trim(basename($path), '/');
+    if ('' === $target) {
+        return;
+    }
+
+    $legacy_slugs = [
+        'product-launch-network-validation',
+        'product-launch-network-validation-dashboard',
+        'product-launch-network-validation-list',
+        'product-launch-validation-settings',
+    ];
+
+    if (in_array($target, $legacy_slugs, true)) {
+        wp_safe_redirect(network_admin_url('admin.php?page=' . $target));
+        exit;
+    }
+});
 function plc_render_phase_router($phase_key) {
     $allowed = [
         'market-clarity','create-offer','create-service',
