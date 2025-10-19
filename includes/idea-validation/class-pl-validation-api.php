@@ -195,7 +195,158 @@ class PL_Validation_API {
 
         return uniqid('pl_demo_', true);
     }
-    
+
+    /**
+     * Search for pre-validated ideas using the remote API.
+     *
+     * @param string $query Search query or topic.
+     * @param array  $args  Additional search parameters.
+     *
+     * @return array|WP_Error
+     */
+    public function search_prevalidated_ideas($query, $args = array()) {
+        $query = trim((string) $query);
+
+        if ('' === $query) {
+            return new WP_Error('pl_validation_missing_query', __('Please provide a search term before running discovery.', 'product-launch'));
+        }
+
+        $args = wp_parse_args($args, array(
+            'limit' => 10,
+            'min_score' => null,
+            'enriched_only' => false,
+        ));
+
+        $args['limit'] = max(1, min((int) $args['limit'], 25));
+
+        $params = array(
+            'query' => $query,
+            'limit' => $args['limit'],
+        );
+
+        if (!empty($args['min_score'])) {
+            $params['min_score'] = (int) $args['min_score'];
+        }
+
+        if (!empty($args['enriched_only'])) {
+            $params['enriched_only'] = $args['enriched_only'] ? 'true' : 'false';
+        }
+
+        $endpoint = trailingslashit($this->get_api_base()) . 'search';
+        $url = $endpoint . '?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+
+        $response = wp_remote_get($url, array(
+            'headers' => array(
+                'Content-Type' => 'application/json',
+                'X-API-Key' => $this->get_api_key(),
+            ),
+            'timeout' => 60,
+        ));
+
+        if (is_wp_error($response)) {
+            return new WP_Error(
+                'pl_validation_search_failed',
+                sprintf(
+                    /* translators: %s: error message */
+                    __('Unable to contact the validation API: %s', 'product-launch'),
+                    $response->get_error_message()
+                )
+            );
+        }
+
+        $code = (int) wp_remote_retrieve_response_code($response);
+        if (200 !== $code) {
+            return new WP_Error(
+                'pl_validation_search_http_error',
+                sprintf(
+                    /* translators: %d: HTTP status code */
+                    __('The validation API returned an unexpected status code: %d', 'product-launch'),
+                    $code
+                )
+            );
+        }
+
+        $data = json_decode(wp_remote_retrieve_body($response), true);
+
+        if (!is_array($data)) {
+            return new WP_Error('pl_validation_search_invalid', __('The validation API returned an invalid response.', 'product-launch'));
+        }
+
+        if (isset($data['ideas']) && is_array($data['ideas'])) {
+            $ideas = $data['ideas'];
+        } elseif (isset($data['data']) && is_array($data['data'])) {
+            $ideas = $data['data'];
+        } else {
+            $ideas = is_array($data) ? $data : array();
+        }
+
+        $normalized = array();
+        foreach ($ideas as $idea) {
+            $normalized[] = $this->normalize_search_result($idea);
+        }
+
+        if (!empty($args['min_score'])) {
+            $min_score = (int) $args['min_score'];
+            $normalized = array_values(array_filter($normalized, function ($idea) use ($min_score) {
+                return isset($idea['adjusted_score']) && (int) $idea['adjusted_score'] >= $min_score;
+            }));
+        }
+
+        return array(
+            'ideas' => $normalized,
+            'meta' => array(
+                'count' => count($normalized),
+                'query' => $query,
+                'limit' => $args['limit'],
+            ),
+        );
+    }
+
+    /**
+     * Store a discovered idea locally and optionally publish it to the library.
+     *
+     * @param array $idea_data          Sanitized idea payload.
+     * @param int   $user_id            User responsible for publishing.
+     * @param int   $site_id            Site identifier.
+     * @param bool  $publish_to_library Whether the idea should be immediately available in the library.
+     *
+     * @return int|WP_Error Validation ID on success.
+     */
+    public function create_validation_from_idea($idea_data, $user_id, $site_id, $publish_to_library = true) {
+        $user_id = $user_id ? (int) $user_id : get_current_user_id();
+        $site_id = $site_id ? (int) $site_id : get_current_blog_id();
+
+        $normalized = $this->normalize_search_result($idea_data);
+
+        if (empty($normalized['business_idea'])) {
+            return new WP_Error('pl_validation_missing_business_idea', __('Unable to determine the business idea from the supplied data.', 'product-launch'));
+        }
+
+        $external_id = isset($normalized['id']) ? $normalized['id'] : '';
+
+        if (!empty($external_id)) {
+            $existing_id = $this->get_validation_id_by_external($external_id);
+
+            if ($existing_id) {
+                $updated = $this->update_validation_from_array($existing_id, $normalized, $publish_to_library);
+
+                if (is_wp_error($updated)) {
+                    return $updated;
+                }
+
+                return (int) $existing_id;
+            }
+        }
+
+        $result = $this->save_validation($user_id, $site_id, $normalized['business_idea'], $normalized, $publish_to_library);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return (int) $result;
+    }
+
     /**
      * Get validation by external ID
      */
@@ -237,7 +388,7 @@ class PL_Validation_API {
     /**
      * Save validation to local database
      */
-    private function save_validation($user_id, $site_id, $business_idea, $api_data) {
+    private function save_validation($user_id, $site_id, $business_idea, $api_data, $publish_to_library = false) {
         global $wpdb;
         $table = $wpdb->prefix . 'pl_validations';
 
@@ -252,7 +403,8 @@ class PL_Validation_API {
             'confidence_level' => $api_data['confidence_level'] ?? null,
             'validation_status' => 'completed',
             'enrichment_status' => isset($api_data['enriched']) && $api_data['enriched'] ? 'completed' : 'pending',
-            'library_published' => 0,
+            'library_published' => $publish_to_library ? 1 : 0,
+            'published_at' => $publish_to_library ? current_time('mysql') : null,
             'core_data' => wp_json_encode($api_data)
         ));
 
@@ -266,6 +418,190 @@ class PL_Validation_API {
         }
 
         return (int) $wpdb->insert_id;
+    }
+
+    /**
+     * Update an existing validation record using normalized idea data.
+     *
+     * @param int   $validation_id      Validation identifier.
+     * @param array $api_data           Normalized idea payload.
+     * @param bool  $publish_to_library Whether to publish to the network library.
+     *
+     * @return int|WP_Error
+     */
+    private function update_validation_from_array($validation_id, $api_data, $publish_to_library = false) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'pl_validations';
+
+        $update = array(
+            'business_idea' => $api_data['business_idea'] ?? '',
+            'validation_score' => isset($api_data['adjusted_score']) ? (int) $api_data['adjusted_score'] : 0,
+            'confidence_level' => $api_data['confidence_level'] ?? null,
+            'validation_status' => 'completed',
+            'enrichment_status' => !empty($api_data['enriched']) ? 'completed' : 'pending',
+            'core_data' => wp_json_encode($api_data),
+        );
+
+        if ($publish_to_library) {
+            $update['library_published'] = 1;
+            $update['published_at'] = current_time('mysql');
+        }
+
+        $result = $wpdb->update($table, $update, array('id' => (int) $validation_id));
+
+        if (false === $result) {
+            return new WP_Error('pl_validation_update_failed', __('Unable to update the validation record with the new idea data.', 'product-launch'));
+        }
+
+        return (int) $validation_id;
+    }
+
+    /**
+     * Retrieve a validation ID by its external identifier.
+     *
+     * @param string $external_id External API identifier.
+     *
+     * @return int Validation ID or 0 when not found.
+     */
+    private function get_validation_id_by_external($external_id) {
+        $external_id = trim((string) $external_id);
+
+        if ('' === $external_id) {
+            return 0;
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'pl_validations';
+
+        $found = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM $table WHERE external_api_id = %s LIMIT 1",
+            $external_id
+        ));
+
+        return $found ? (int) $found : 0;
+    }
+
+    /**
+     * Normalize and sanitize a search result payload.
+     *
+     * @param mixed $idea Raw idea payload from API or UI.
+     *
+     * @return array Normalized idea data.
+     */
+    private function normalize_search_result($idea) {
+        $idea = $this->deep_sanitize_value($idea);
+
+        if (!is_array($idea)) {
+            $idea = array();
+        }
+
+        $business_idea = '';
+        foreach (array('business_idea', 'idea', 'title', 'name', 'headline') as $key) {
+            if (!empty($idea[$key]) && is_string($idea[$key])) {
+                $business_idea = $idea[$key];
+                break;
+            }
+        }
+
+        if ('' === $business_idea && !empty($idea['summary'])) {
+            $business_idea = $idea['summary'];
+        }
+
+        if ('' === $business_idea && !empty($idea['description'])) {
+            $business_idea = $idea['description'];
+        }
+
+        if ('' === $business_idea) {
+            $business_idea = __('Untitled Idea', 'product-launch');
+        }
+
+        $external_id = '';
+        foreach (array('id', 'external_api_id', 'externalId') as $key) {
+            if (!empty($idea[$key])) {
+                $external_id = (string) $idea[$key];
+                break;
+            }
+        }
+
+        if ('' === $external_id) {
+            $external_id = 'network-' . md5($business_idea . wp_json_encode($idea));
+        }
+
+        $score = 0;
+        foreach (array('adjusted_score', 'score', 'validation_score') as $key) {
+            if (isset($idea[$key]) && is_numeric($idea[$key])) {
+                $score = (int) round($idea[$key]);
+                break;
+            }
+        }
+
+        $confidence = '';
+        foreach (array('confidence_level', 'confidence', 'confidenceScore') as $key) {
+            if (!empty($idea[$key]) && is_string($idea[$key])) {
+                $confidence = $idea[$key];
+                break;
+            }
+        }
+
+        $summary = '';
+        foreach (array('summary', 'description', 'overview') as $key) {
+            if (!empty($idea[$key]) && is_string($idea[$key])) {
+                $summary = $idea[$key];
+                break;
+            }
+        }
+
+        $normalized = $idea;
+        $normalized['id'] = $external_id;
+        $normalized['external_api_id'] = $external_id;
+        $normalized['business_idea'] = $business_idea;
+        $normalized['summary'] = $summary;
+        $normalized['adjusted_score'] = $score;
+        $normalized['validation_score'] = $score;
+        $normalized['confidence_level'] = $confidence;
+        $normalized['enriched'] = isset($idea['enriched']) ? (bool) $idea['enriched'] : true;
+        $normalized['origin'] = isset($idea['origin']) ? $idea['origin'] : 'network_search';
+        $normalized['source_type'] = isset($idea['source_type']) ? $idea['source_type'] : 'network_search';
+        $normalized['generated_at'] = isset($idea['generated_at']) ? $idea['generated_at'] : current_time('mysql');
+
+        if (isset($normalized['tags']) && is_array($normalized['tags'])) {
+            $normalized['tags'] = array_values(array_map('sanitize_title', $normalized['tags']));
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Recursively sanitize incoming idea payloads.
+     *
+     * @param mixed $value Raw payload value.
+     *
+     * @return mixed Sanitized value.
+     */
+    private function deep_sanitize_value($value) {
+        if (is_array($value)) {
+            $clean = array();
+            foreach ($value as $key => $sub_value) {
+                $clean_key = is_string($key) ? sanitize_key($key) : $key;
+                $clean[$clean_key] = $this->deep_sanitize_value($sub_value);
+            }
+            return $clean;
+        }
+
+        if (is_object($value)) {
+            return $this->deep_sanitize_value((array) $value);
+        }
+
+        if (is_bool($value) || null === $value) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return 0 + $value;
+        }
+
+        return sanitize_textarea_field((string) $value);
     }
 
     /**

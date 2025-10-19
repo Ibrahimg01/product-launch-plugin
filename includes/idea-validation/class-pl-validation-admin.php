@@ -185,6 +185,29 @@ class PL_Validation_Admin {
         wp_localize_script('pl-validation-admin', 'plValidation', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
             'nonce'   => wp_create_nonce('pl_validation_admin'),
+            'networkNonce' => wp_create_nonce('pl_validation_network'),
+            'isNetwork' => is_network_admin(),
+            'networkStrings' => array(
+                'searching' => __('Searching for pre-validated ideas…', 'product-launch'),
+                'noResults' => __('No pre-validated ideas were found for this search.', 'product-launch'),
+                'pushSuccess' => __('Idea published to the network library.', 'product-launch'),
+                'pushError' => __('Unable to publish this idea to the library. Please try again.', 'product-launch'),
+                'searchError' => __('Unable to complete the discovery request. Please try again.', 'product-launch'),
+                'publishAction' => __('Push to Ideas Library', 'product-launch'),
+                'publishedAction' => __('Published', 'product-launch'),
+                'publishing' => __('Publishing…', 'product-launch'),
+                'metaLabel' => __('Discovered %1$s ideas for “%2$s”.', 'product-launch'),
+                'metaLabelNoQuery' => __('Discovered %1$s ideas.', 'product-launch'),
+                'ideaColumn' => __('Idea', 'product-launch'),
+                'scoreColumn' => __('Score', 'product-launch'),
+                'confidenceColumn' => __('Confidence', 'product-launch'),
+                'actionsColumn' => __('Actions', 'product-launch'),
+                'libraryLinkLabel' => __('Open Ideas Library', 'product-launch'),
+            ),
+            'networkLinks' => array(
+                'library' => $this->get_admin_page_url('product-launch-network-ideas-library'),
+                'dashboard' => $this->get_admin_page_url('product-launch-network-validation-dashboard'),
+            ),
         ));
 
         if (false !== strpos($hook, 'product-launch_page_product-launch-validation')
@@ -428,6 +451,11 @@ class PL_Validation_Admin {
         $validation_id = isset($_GET['validation_id']) ? absint($_GET['validation_id']) : 0;
         $user_id = get_current_user_id();
 
+        if (is_network_admin() && 0 === $validation_id) {
+            $this->render_network_portal_page();
+            return;
+        }
+
         echo '<div class="wrap pl-validation-portal">';
         echo '<h1>' . esc_html__('Idea Validation', 'product-launch') . '</h1>';
 
@@ -490,6 +518,20 @@ class PL_Validation_Admin {
         echo '</div>';
 
         echo '</div>';
+    }
+
+    /**
+     * Render the network (super admin) portal page with idea discovery tools.
+     */
+    private function render_network_portal_page() {
+        if (!current_user_can('manage_network_options')) {
+            wp_die(__('You do not have sufficient permissions to access this page.', 'product-launch'));
+        }
+
+        $ideas_library_url = $this->get_admin_page_url('product-launch-network-ideas-library');
+        $dashboard_url = $this->get_admin_page_url('product-launch-network-validation-dashboard');
+
+        include PL_PLUGIN_DIR . 'templates/admin/network-validation-search.php';
     }
 }
 

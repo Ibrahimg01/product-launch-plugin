@@ -273,3 +273,117 @@
         width: 100%;
     }
 }
+
+/* Network discovery interface */
+.pl-network-validation {
+    max-width: 1100px;
+}
+
+.pl-network-validation__intro {
+    font-size: 15px;
+    color: #444;
+    margin-bottom: 18px;
+}
+
+.pl-network-validation__links {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.pl-network-search-form {
+    background: #fff;
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.pl-network-search-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.pl-network-search-fields .pl-field {
+    flex: 1 1 220px;
+    min-width: 200px;
+}
+
+.pl-network-search-fields .pl-field label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.pl-network-search-fields .pl-field input,
+.pl-network-search-fields .pl-field select {
+    width: 100%;
+}
+
+.pl-field--toggle {
+    display: flex;
+    align-items: flex-end;
+    min-width: 180px;
+}
+
+.pl-field--toggle label {
+    font-weight: 500;
+}
+
+.pl-network-search-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.pl-network-search-status {
+    font-style: italic;
+    color: #555;
+}
+
+.pl-network-search-results {
+    background: #fff;
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.pl-network-search-results.is-loading {
+    opacity: 0.6;
+}
+
+.pl-network-search-meta {
+    margin: 0 0 12px;
+    font-size: 14px;
+    color: #444;
+}
+
+.pl-network-search-table th {
+    font-weight: 600;
+}
+
+.pl-network-score-cell {
+    width: 120px;
+}
+
+.pl-network-idea-meta {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: #5f5f5f;
+}
+
+.pl-network-actions-col {
+    width: 170px;
+}
+
+.pl-network-published {
+    background-color: #2271b1;
+    border-color: #1b5790;
+    color: #fff;
+}
+
+.pl-network-search-results .description {
+    margin-bottom: 0;
+}
