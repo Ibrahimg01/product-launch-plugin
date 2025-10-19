@@ -285,11 +285,15 @@ class PL_Ideas_Library {
      * @return array|false
      */
     private function fetch_library_ideas($params = array()) {
-        $endpoint = get_option('pl_validation_api_endpoint', 'https://api.explodingstartup.com/api/ideas');
-        $api_key = get_option('pl_validation_api_key', 'exp_live_05663cf87e3b406780a939cf079e59f3');
+        $endpoint = pl_get_validation_option('pl_validation_api_endpoint', 'https://api.explodingstartup.com/api/ideas');
+        $api_key = pl_get_validation_option('pl_validation_api_key', 'exp_live_05663cf87e3b406780a939cf079e59f3');
+
+        if (empty($endpoint)) {
+            $endpoint = 'https://api.explodingstartup.com/api/ideas';
+        }
 
         $query_string = http_build_query($params);
-        $url = trailingslashit($endpoint) . 'cards?' . $query_string;
+        $url = trailingslashit(untrailingslashit($endpoint)) . 'cards?' . $query_string;
 
         $response = wp_remote_get($url, array(
             'headers' => array(

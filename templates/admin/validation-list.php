@@ -7,6 +7,8 @@ if (!defined('ABSPATH')) {
 }
 ?>
 
+<?php $list_base_url = isset($list_base_url) ? $list_base_url : admin_url('admin.php?page=' . $list_base_slug); ?>
+
 <div class="wrap pl-validation-list">
     <h1 class="wp-heading-inline"><?php _e('All Validations', 'product-launch'); ?></h1>
     <hr class="wp-header-end">
@@ -30,7 +32,7 @@ if (!defined('ABSPATH')) {
             <button type="submit" class="button"><?php _e('Filter', 'product-launch'); ?></button>
 
             <?php if ($status_filter || $search) : ?>
-                <a href="<?php echo esc_url(admin_url('admin.php?page=' . $list_base_slug)); ?>" class="button">
+                <a href="<?php echo esc_url($list_base_url); ?>" class="button">
                     <?php _e('Clear Filters', 'product-launch'); ?>
                 </a>
             <?php endif; ?>

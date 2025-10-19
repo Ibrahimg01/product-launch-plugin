@@ -34,24 +34,26 @@ class PL_Validation_Quota {
         if (!$site_id) {
             $site_id = get_current_blog_id();
         }
-        
+
         // Check if unlimited
         if ($this->has_unlimited_access($user_id)) {
             return PHP_INT_MAX;
         }
-        
+
         global $wpdb;
         $table = $wpdb->prefix . 'pl_validation_quota';
         $month_year = date('Y-m');
-        
+
         $limit = $wpdb->get_var($wpdb->prepare(
-            "SELECT validations_limit FROM $table 
+            "SELECT validations_limit FROM $table
              WHERE user_id = %d AND site_id = %d AND month_year = %s",
             $user_id, $site_id, $month_year
         ));
-        
-        // Default limit: 3 per month for free users
-        return $limit !== null ? (int)$limit : 3;
+
+        // Default limit fallback respects network/site setting
+        $default_limit = (int) pl_get_validation_option('pl_validation_default_limit', 3);
+
+        return $limit !== null ? (int) $limit : max(1, $default_limit);
     }
     
     /**
@@ -97,7 +99,7 @@ class PL_Validation_Quota {
         if ($exists) {
             // Increment existing
             $wpdb->query($wpdb->prepare(
-                "UPDATE $table SET validations_used = validations_used + 1 
+                "UPDATE $table SET validations_used = validations_used + 1
                  WHERE id = %d",
                 $exists
             ));
@@ -108,7 +110,7 @@ class PL_Validation_Quota {
                 'site_id' => $site_id,
                 'month_year' => $month_year,
                 'validations_used' => 1,
-                'validations_limit' => 3 // Default limit
+                'validations_limit' => max(1, (int) pl_get_validation_option('pl_validation_default_limit', 3))
             ));
         }
         
@@ -119,11 +121,15 @@ class PL_Validation_Quota {
      * Check if user has unlimited access
      */
     public function has_unlimited_access($user_id) {
+        if (is_multisite() && is_super_admin($user_id)) {
+            return true;
+        }
+
         // Admins get unlimited
         if (user_can($user_id, 'manage_options')) {
             return true;
         }
-        
+
         // Check for premium membership (customize based on your membership plugin)
         // Example: if using Paid Memberships Pro
         if (function_exists('pmpro_hasMembershipLevel')) {

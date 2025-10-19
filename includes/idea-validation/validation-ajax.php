@@ -11,7 +11,7 @@ add_action('wp_ajax_pl_test_api_connection', 'pl_ajax_test_api_connection');
 function pl_ajax_test_api_connection() {
     check_ajax_referer('pl_validation_admin', 'nonce');
 
-    if (!current_user_can('manage_options')) {
+    if (!current_user_can('manage_options') && !current_user_can('manage_network_options')) {
         wp_send_json_error(array('message' => __('Unauthorized', 'product-launch')));
     }
 
@@ -37,7 +37,7 @@ add_action('wp_ajax_pl_delete_validation', 'pl_ajax_delete_validation');
 function pl_ajax_delete_validation() {
     check_ajax_referer('pl_validation_admin', 'nonce');
 
-    if (!current_user_can('manage_options')) {
+    if (!current_user_can('manage_options') && !current_user_can('manage_network_options')) {
         wp_send_json_error(array('message' => __('Unauthorized', 'product-launch')));
     }
 
@@ -61,7 +61,7 @@ add_action('wp_ajax_pl_get_validation_details', 'pl_ajax_get_validation_details'
 function pl_ajax_get_validation_details() {
     check_ajax_referer('pl_validation_admin', 'nonce');
 
-    if (!current_user_can('manage_options')) {
+    if (!current_user_can('manage_options') && !current_user_can('manage_network_options')) {
         wp_send_json_error(array('message' => __('Unauthorized', 'product-launch')));
     }
 
@@ -88,7 +88,7 @@ add_action('wp_ajax_pl_bulk_validation_action', 'pl_ajax_bulk_validation_action'
 function pl_ajax_bulk_validation_action() {
     check_ajax_referer('pl_validation_admin', 'nonce');
 
-    if (!current_user_can('manage_options')) {
+    if (!current_user_can('manage_options') && !current_user_can('manage_network_options')) {
         wp_send_json_error(array('message' => __('Unauthorized', 'product-launch')));
     }
 

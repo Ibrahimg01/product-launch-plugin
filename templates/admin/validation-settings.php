@@ -10,6 +10,12 @@ if (!defined('ABSPATH')) {
 <div class="wrap pl-validation-settings">
     <h1><?php _e('Validation Settings', 'product-launch'); ?></h1>
 
+    <?php if (is_multisite() && is_network_admin()) : ?>
+        <div class="notice notice-info">
+            <p><?php _e('These settings apply network-wide and cannot be changed from individual subsites.', 'product-launch'); ?></p>
+        </div>
+    <?php endif; ?>
+
     <form method="post" action="">
         <?php wp_nonce_field('pl_validation_settings'); ?>
 
