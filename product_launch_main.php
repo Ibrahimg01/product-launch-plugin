@@ -16,13 +16,21 @@ if (!function_exists('pl_test_openai_connection')) {
     function pl_test_openai_connection($api_key = '', $model = '', $timeout = 30) {
     // Fetch network-wide settings if not provided
     if (empty($api_key)) {
-        $opts = get_site_option('pl_network_settings', array());
-        $api_key = isset($opts['openai_api_key']) ? trim($opts['openai_api_key']) : '';
+        if (function_exists('pl_get_network_settings')) {
+            $opts = pl_get_network_settings();
+        } else {
+            $opts = get_site_option(PL_NETWORK_OPTION_NAME, array());
+            if (empty($opts)) {
+                $opts = get_site_option(PL_OPTION_NAME, array());
+            }
+        }
+
+        $api_key = isset($opts['openai_key']) ? trim($opts['openai_key']) : (isset($opts['openai_api_key']) ? trim($opts['openai_api_key']) : '');
         if (empty($model)) {
             $model = isset($opts['ai_model']) ? $opts['ai_model'] : 'gpt-4o-mini';
         }
         if (empty($timeout)) {
-            $timeout = isset($opts['api_timeout']) ? intval($opts['api_timeout']) : 30;
+            $timeout = isset($opts['timeout']) ? intval($opts['timeout']) : (isset($opts['api_timeout']) ? intval($opts['api_timeout']) : 30);
         }
     }
     if (empty($api_key)) {
@@ -177,6 +185,7 @@ define('PL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 define('PL_OPTION_GROUP', 'pl_options');
 define('PL_OPTION_NAME', 'pl_settings');
+define('PL_NETWORK_OPTION_NAME', 'pl_network_settings');
 define('PL_NONCE_ACTION', 'pl_nonce_action');
 
 // Validation system classes
@@ -349,14 +358,9 @@ function pl_create_projects_tables() {
  * Enhanced settings with better validation
  */
 
-if (!function_exists('pl_get_settings')) {
-function pl_get_settings() {
-    if (is_multisite()) {
-        $opts = get_site_option(PL_OPTION_NAME, []);
-    } else {
-        $opts = get_option(PL_OPTION_NAME, []);
-    }
-    $defaults = [
+if (!function_exists('pl_get_default_settings')) {
+function pl_get_default_settings() {
+    return [
         'openai_key' => '',
         'ai_model' => 'gpt-4o-mini',
         'rate_limit_per_min' => 20,
@@ -364,6 +368,41 @@ function pl_get_settings() {
         'max_tokens' => 1000,
         'temperature' => 0.7,
     ];
+}}
+
+if (!function_exists('pl_get_network_settings')) {
+function pl_get_network_settings() {
+    $defaults = pl_get_default_settings();
+    $network_opts = get_site_option(PL_NETWORK_OPTION_NAME, []);
+
+    // Backward compatibility: fall back to legacy storage if present.
+    if (empty($network_opts)) {
+        $legacy = get_site_option(PL_OPTION_NAME, []);
+        if (!empty($legacy)) {
+            $network_opts = $legacy;
+        }
+    }
+
+    return wp_parse_args($network_opts, $defaults);
+}}
+
+if (!function_exists('pl_get_settings')) {
+function pl_get_settings() {
+    $defaults = pl_get_default_settings();
+
+    if (is_multisite()) {
+        $network = pl_get_network_settings();
+        $site_opts = get_option(PL_OPTION_NAME, []);
+
+        // Allow site-specific overrides while keeping network defaults available.
+        if (!empty($site_opts)) {
+            $network = wp_parse_args($site_opts, $network);
+        }
+
+        return wp_parse_args($network, $defaults);
+    }
+
+    $opts = get_option(PL_OPTION_NAME, []);
     return wp_parse_args($opts, $defaults);
 
 }
@@ -417,6 +456,55 @@ function pl_field_timeout() {
     $s = pl_get_settings();
     printf('<input type="number" min="5" max="60" id="timeout" name="%s[timeout]" value="%d" class="small-text" />',
         PL_OPTION_NAME, intval($s['timeout']));
+}
+
+function pl_network_field_openai_key() {
+    $s = pl_get_network_settings();
+    $val = esc_attr($s['openai_key']);
+    echo '<input type="password" id="openai_key" name="'.PL_NETWORK_OPTION_NAME.'[openai_key]" value="'.$val.'" class="regular-text" placeholder="sk-..." /> ';
+    echo '<button class="button toggle-api-key" type="button"><span class="dashicons dashicons-visibility"></span> ' . esc_html__('Show', 'product-launch') . '</button>';
+    echo '<p class="description">'.esc_html__('Your OpenAI API key. Get one at platform.openai.com', 'product-launch').'</p>';
+}
+
+function pl_network_field_ai_model() {
+    $s = pl_get_network_settings();
+    $models = [
+        'gpt-4o-mini' => 'GPT-4o Mini (Recommended)',
+        'gpt-4o' => 'GPT-4o (Premium)',
+        'gpt-4-turbo' => 'GPT-4 Turbo',
+        'gpt-3.5-turbo' => 'GPT-3.5 Turbo'
+    ];
+    echo '<select id="ai_model" name="'.PL_NETWORK_OPTION_NAME.'[ai_model]">';
+    foreach ($models as $k => $label) {
+        printf('<option value="%s"%s>%s</option>', esc_attr($k), selected($s['ai_model'], $k, false), esc_html($label));
+    }
+    echo '</select>';
+}
+
+function pl_network_field_max_tokens() {
+    $s = pl_get_network_settings();
+    printf('<input type="number" min="100" max="4000" id="max_tokens" name="%s[max_tokens]" value="%d" class="small-text" />',
+        PL_NETWORK_OPTION_NAME, intval($s['max_tokens']));
+    echo '<p class="description">Maximum tokens for AI responses (100-4000)</p>';
+}
+
+function pl_network_field_temperature() {
+    $s = pl_get_network_settings();
+    printf('<input type="number" min="0" max="2" step="0.1" id="temperature" name="%s[temperature]" value="%.1f" class="small-text" />',
+        PL_NETWORK_OPTION_NAME, floatval($s['temperature']));
+    echo '<p class="description">AI creativity level (0.0-2.0, higher = more creative)</p>';
+}
+
+function pl_network_field_rate_limit() {
+    $s = pl_get_network_settings();
+    printf('<input type="number" min="1" max="100" id="rate_limit_per_min" name="%s[rate_limit_per_min]" value="%d" class="small-text" />',
+        PL_NETWORK_OPTION_NAME, intval($s['rate_limit_per_min']));
+}
+
+function pl_network_field_timeout() {
+    $s = pl_get_network_settings();
+    printf('<input type="number" min="5" max="60" id="timeout" name="%s[timeout]" value="%d" class="small-text" />',
+        PL_NETWORK_OPTION_NAME, intval($s['timeout']));
 }
 
 /**
@@ -1322,17 +1410,38 @@ function pl_sanitize_settings($input) {  // ✅ ADDED $input PARAMETER
 
 // Network Admin Menu - Settings only here
 add_action('network_admin_menu', function() {
-    if (is_multisite()) {
-        add_menu_page(
-            __('Product Launch Settings','product-launch'),
-            __('Product Launch','product-launch'),
-            'manage_network_options',
-            'product-launch-network-settings',
-            'pl_render_network_settings_page',
-            'dashicons-megaphone',
-            30
-        );
+    if (!is_multisite()) {
+        return;
     }
+
+    add_menu_page(
+        __('Product Launch Settings','product-launch'),
+        __('Product Launch','product-launch'),
+        'manage_network_options',
+        'product-launch-network-settings',
+        'pl_render_network_settings_page',
+        'dashicons-megaphone',
+        30
+    );
+
+    add_submenu_page(
+        'product-launch-network-settings',
+        __('Network Settings','product-launch'),
+        __('Network Settings','product-launch'),
+        'manage_network_options',
+        'product-launch-network-settings',
+        'pl_render_network_settings_page'
+    );
+
+    // Provide a familiar entry under Network Settings as well.
+    add_submenu_page(
+        'settings.php',
+        __('Product Launch','product-launch'),
+        __('Product Launch','product-launch'),
+        'manage_network_options',
+        'product-launch-network-settings',
+        'pl_render_network_settings_page'
+    );
 });
 
 
@@ -1345,13 +1454,13 @@ add_action('admin_init', function() {
         echo '<p>' . __('These settings apply to all sites in your network.', 'product-launch') . '</p>';
         echo '<div class="notice notice-info"><p><strong>' . __('Note:', 'product-launch') . '</strong> ' . __('Individual site administrators cannot modify these settings.', 'product-launch') . '</p></div>';
     }, 'product-launch-network-settings');
-    add_settings_field('openai_key', __('OpenAI API Key', 'product-launch'), 'pl_field_openai_key', 'product-launch-network-settings', 'pl_network_api');
-    add_settings_field('ai_model', __('AI Model', 'product-launch'), 'pl_field_ai_model', 'product-launch-network-settings', 'pl_network_api');
-    add_settings_field('max_tokens', __('Max Tokens', 'product-launch'), 'pl_field_max_tokens', 'product-launch-network-settings', 'pl_network_api');
-    add_settings_field('temperature', __('Temperature', 'product-launch'), 'pl_field_temperature', 'product-launch-network-settings', 'pl_network_api');
+    add_settings_field('openai_key', __('OpenAI API Key', 'product-launch'), 'pl_network_field_openai_key', 'product-launch-network-settings', 'pl_network_api');
+    add_settings_field('ai_model', __('AI Model', 'product-launch'), 'pl_network_field_ai_model', 'product-launch-network-settings', 'pl_network_api');
+    add_settings_field('max_tokens', __('Max Tokens', 'product-launch'), 'pl_network_field_max_tokens', 'product-launch-network-settings', 'pl_network_api');
+    add_settings_field('temperature', __('Temperature', 'product-launch'), 'pl_network_field_temperature', 'product-launch-network-settings', 'pl_network_api');
     add_settings_section('pl_network_security', __('Network Security & Limits', 'product-launch'), function(){}, 'product-launch-network-settings');
-    add_settings_field('rate_limit_per_min', __('Rate limit (requests/min)', 'product-launch'), 'pl_field_rate_limit', 'product-launch-network-settings', 'pl_network_security');
-    add_settings_field('timeout', __('API timeout (seconds)', 'product-launch'), 'pl_field_timeout', 'product-launch-network-settings', 'pl_network_security');
+    add_settings_field('rate_limit_per_min', __('Rate limit (requests/min)', 'product-launch'), 'pl_network_field_rate_limit', 'product-launch-network-settings', 'pl_network_security');
+    add_settings_field('timeout', __('API timeout (seconds)', 'product-launch'), 'pl_network_field_timeout', 'product-launch-network-settings', 'pl_network_security');
 });
 
 
@@ -1363,7 +1472,7 @@ function pl_sanitize_network_settings($input) {
     $out['timeout'] = max(5, min(60, intval($input['timeout'] ?? 30)));
     $out['max_tokens'] = max(100, min(4000, intval($input['max_tokens'] ?? 1000)));
     $out['temperature'] = max(0, min(2, floatval($input['temperature'] ?? 0.7)));
-    update_site_option(PL_OPTION_NAME, $out);
+    update_site_option(PL_NETWORK_OPTION_NAME, $out);
     return $out;
 }
 
@@ -1374,7 +1483,7 @@ function pl_render_network_settings_page() {
 
     // Handle settings update if submitted
     if (isset($_POST['submit']) && isset($_POST['pl_network_nonce']) && wp_verify_nonce($_POST['pl_network_nonce'], 'pl_network_settings_update')) {
-        $settings = isset($_POST[PL_OPTION_NAME]) ? (array) $_POST[PL_OPTION_NAME] : [];
+        $settings = isset($_POST[PL_NETWORK_OPTION_NAME]) ? (array) $_POST[PL_NETWORK_OPTION_NAME] : [];
         pl_sanitize_network_settings($settings);
         echo '<div class="notice notice-success"><p>' . __('Settings saved successfully!', 'product-launch') . '</p></div>';
     }
@@ -1404,7 +1513,24 @@ function pl_render_network_settings_page() {
 
 
 // Consolidated menu registration with hidden phase pages for non-super-admins
+function plc_get_phase_menu_map() {
+    return [
+        'product-launch-market'   => ['key' => 'market-clarity',     'menu' => __('Getting Market Clarity','product-launch')],
+        'product-launch-offer'    => ['key' => 'create-offer',       'menu' => __('Creating Your Offer','product-launch')],
+        'product-launch-service'  => ['key' => 'create-service',     'menu' => __('Creating Your Service','product-launch')],
+        'product-launch-funnel'   => ['key' => 'build-funnel',       'menu' => __('Building Sales Funnel','product-launch')],
+        'product-launch-emailss'  => ['key' => 'email-sequences',    'menu' => __('Writing Email Sequences','product-launch')],
+        'product-launch-organic'  => ['key' => 'organic-posts',      'menu' => __('Organic Promo Posts','product-launch')],
+        'product-launch-ads'      => ['key' => 'facebook-ads',       'menu' => __('Creating Facebook Ads','product-launch')],
+        'product-launch-launch'   => ['key' => 'launch',             'menu' => __('Launching','product-launch')],
+    ];
+}
+
 add_action('admin_menu', function() {
+    if (is_network_admin()) {
+        return;
+    }
+
     add_menu_page(
         __('Product Launch','product-launch'),
         __('Product Launch','product-launch'),
@@ -1414,10 +1540,33 @@ add_action('admin_menu', function() {
         'dashicons-megaphone',
         3
     );
-    
 
-// Alias slugs to keep backward compatibility (e.g., product-launch-emails -> email-sequences)
+    add_submenu_page(
+        'product-launch',
+        __('Dashboard','product-launch'),
+        __('Dashboard','product-launch'),
+        'read',
+        'product-launch',
+        'pl_render_dashboard'
+    );
+
+    foreach (plc_get_phase_menu_map() as $slug => $data) {
+        add_submenu_page(
+            'product-launch',
+            $data['menu'],
+            $data['menu'],
+            'read',
+            $slug,
+            function() use ($data) { plc_render_phase_router($data['key']); }
+        );
+    }
+}, 9);
+
 add_action('admin_menu', function () {
+    if (is_network_admin()) {
+        return;
+    }
+
     $aliases = [
         'product-launch-emails' => 'email-sequences',
     ];
@@ -1431,23 +1580,27 @@ add_action('admin_menu', function () {
             function() use ($phase_key) { plc_render_phase_router($phase_key); }
         );
     }
-}, 6);
+}, 9);
 
-add_submenu_page('product-launch', __('Dashboard','product-launch'), __('Dashboard','product-launch'), 'read', 'product-launch', 'pl_render_dashboard');
+add_action('admin_menu', function() {
+    if (is_network_admin()) {
+        return;
+    }
+    if (is_multisite() && is_super_admin()) return;
+    foreach (array_keys(plc_get_phase_menu_map()) as $slug) {
+        remove_submenu_page('product-launch', $slug);
+    }
+}, 100);
 
-    $plc_phases = [
-        'product-launch-market'   => ['key' => 'market-clarity',     'menu' => __('Getting Market Clarity','product-launch')],
-        'product-launch-offer'    => ['key' => 'create-offer',       'menu' => __('Creating Your Offer','product-launch')],
-        'product-launch-service'  => ['key' => 'create-service',     'menu' => __('Creating Your Service','product-launch')],
-        'product-launch-funnel'   => ['key' => 'build-funnel',       'menu' => __('Building Sales Funnel','product-launch')],
-        'product-launch-emailss'   => ['key' => 'email-sequences',    'menu' => __('Writing Email Sequences','product-launch')],
-        'product-launch-organic'  => ['key' => 'organic-posts',      'menu' => __('Organic Promo Posts','product-launch')],
-        'product-launch-ads'      => ['key' => 'facebook-ads',       'menu' => __('Creating Facebook Ads','product-launch')],
-        'product-launch-launch'   => ['key' => 'launch',             'menu' => __('Launching','product-launch')],
-    ];
-    foreach ($plc_phases as $slug => $data) {
+add_action('admin_menu', function () {
+    if (is_network_admin()) {
+        return;
+    }
+
+    foreach (plc_get_phase_menu_map() as $slug => $data) {
+        // Register a hidden page with no parent; keeps route working even if submenu entries are removed
         add_submenu_page(
-            'product-launch',
+            null,
             $data['menu'],
             $data['menu'],
             'read',
@@ -1455,46 +1608,15 @@ add_submenu_page('product-launch', __('Dashboard','product-launch'), __('Dashboa
             function() use ($data) { plc_render_phase_router($data['key']); }
         );
     }
-}, 9);
+}, 5);
 
-// Hide phase pages from submenu for non-super-admins (but keep accessible)
-add_action('admin_menu', function() {
-    if (is_multisite() && is_super_admin()) return;
-    $phases = [
-        'product-launch-market',
-        'product-launch-offer',
-        'product-launch-service',
-        'product-launch-funnel',
-        'product-launch-emailss',
-        'product-launch-organic',
-        'product-launch-ads',
-        'product-launch-launch',
-    ];
-    foreach ($phases as $slug) {
-        remove_submenu_page('product-launch', $slug);
-    }
-}, 100);
-
-
-// Ensure phase pages are registered as hidden pages too (so URL access never fails)
-add_action('admin_menu', function () {
-    $plc_phases = [
-        'product-launch-market'   => ['key' => 'market-clarity',     'menu' => __('Getting Market Clarity','product-launch')],
-        'product-launch-offer'    => ['key' => 'create-offer',       'menu' => __('Creating Your Offer','product-launch')],
-        'product-launch-service'  => ['key' => 'create-service',     'menu' => __('Creating Your Service','product-launch')],
-        'product-launch-funnel'   => ['key' => 'build-funnel',       'menu' => __('Building Sales Funnel','product-launch')],
-        'product-launch-emailss'   => ['key' => 'email-sequences',    'menu' => __('Writing Email Sequences','product-launch')],
-        'product-launch-organic'  => ['key' => 'organic-posts',      'menu' => __('Organic Promo Posts','product-launch')],
-        'product-launch-ads'      => ['key' => 'facebook-ads',       'menu' => __('Creating Facebook Ads','product-launch')],
-        'product-launch-launch'   => ['key' => 'launch',             'menu' => __('Launching','product-launch')],
-    ];
-    foreach ($plc_phases as $slug => $data) {
-        // Register a hidden page with no parent; keeps route working even if submenu entries are removed
+add_action('network_admin_menu', function () {
+    foreach (plc_get_phase_menu_map() as $slug => $data) {
         add_submenu_page(
             null,
             $data['menu'],
             $data['menu'],
-            'read',
+            'manage_network_options',
             $slug,
             function() use ($data) { plc_render_phase_router($data['key']); }
         );
