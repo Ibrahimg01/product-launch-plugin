@@ -248,8 +248,12 @@ class PL_Validation_Frontend {
         $context = isset($_POST['context']) ? sanitize_key(wp_unslash($_POST['context'])) : 'frontend';
         $redirect_base = isset($_POST['redirect_base']) ? esc_url_raw(wp_unslash($_POST['redirect_base'])) : '';
 
-        if (empty($redirect_base) && 'admin' === $context) {
-            $redirect_base = admin_url('admin.php?page=product-launch-validation');
+        if (empty($redirect_base)) {
+            if ('admin' === $context) {
+                $redirect_base = admin_url('admin.php?page=product-launch-validation');
+            } elseif ('network_admin' === $context) {
+                $redirect_base = network_admin_url('admin.php?page=product-launch-network-validation');
+            }
         }
 
         $redirect_url = '';
