@@ -6,6 +6,28 @@
 if (!defined('ABSPATH')) exit;
 
 /**
+ * Retrieve validation setting with multisite awareness.
+ */
+function pl_get_validation_option($option_name, $default = '') {
+    if (is_multisite()) {
+        return get_site_option($option_name, $default);
+    }
+
+    return get_option($option_name, $default);
+}
+
+/**
+ * Update validation setting with multisite awareness.
+ */
+function pl_update_validation_option($option_name, $value) {
+    if (is_multisite()) {
+        return update_site_option($option_name, $value);
+    }
+
+    return update_option($option_name, $value);
+}
+
+/**
  * Get user's quota information
  */
 function pl_get_user_quota($user_id = null) {

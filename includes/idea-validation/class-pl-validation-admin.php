@@ -11,6 +11,9 @@ if (!defined('ABSPATH')) {
 class PL_Validation_Admin {
     public function __construct() {
         add_action('admin_menu', array($this, 'add_admin_menu'));
+        if (is_multisite()) {
+            add_action('network_admin_menu', array($this, 'add_network_admin_menu'));
+        }
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
     }
@@ -48,14 +51,25 @@ class PL_Validation_Admin {
             array($this, 'render_list_page')
         );
 
-        add_submenu_page(
-            $parent_slug,
-            __('Validation Settings', 'product-launch'),
-            __('Validation Settings', 'product-launch'),
-            'manage_options',
-            'product-launch-validation-settings',
-            array($this, 'render_settings_page')
-        );
+        if (is_multisite()) {
+            add_submenu_page(
+                null,
+                __('Validation Settings', 'product-launch'),
+                __('Validation Settings', 'product-launch'),
+                'manage_options',
+                'product-launch-validation-settings',
+                array($this, 'render_settings_redirect_page')
+            );
+        } else {
+            add_submenu_page(
+                $parent_slug,
+                __('Validation Settings', 'product-launch'),
+                __('Validation Settings', 'product-launch'),
+                'manage_options',
+                'product-launch-validation-settings',
+                array($this, 'render_settings_page')
+            );
+        }
 
         // Backwards compatibility for legacy direct links
         add_submenu_page(
@@ -65,6 +79,49 @@ class PL_Validation_Admin {
             'manage_options',
             'pl-validation-list',
             array($this, 'render_list_page')
+        );
+    }
+
+    /**
+     * Register network admin menu pages for validation management.
+     */
+    public function add_network_admin_menu() {
+        $parent_slug = 'product-launch-network-settings';
+
+        add_submenu_page(
+            $parent_slug,
+            __('Idea Validation', 'product-launch'),
+            __('Idea Validation', 'product-launch'),
+            'manage_network_options',
+            'product-launch-network-validation',
+            array($this, 'render_portal_page')
+        );
+
+        add_submenu_page(
+            $parent_slug,
+            __('Validation Dashboard', 'product-launch'),
+            __('Validation Dashboard', 'product-launch'),
+            'manage_network_options',
+            'product-launch-network-validation-dashboard',
+            array($this, 'render_dashboard_page')
+        );
+
+        add_submenu_page(
+            $parent_slug,
+            __('All Validations', 'product-launch'),
+            __('All Validations', 'product-launch'),
+            'manage_network_options',
+            'product-launch-network-validation-list',
+            array($this, 'render_list_page')
+        );
+
+        add_submenu_page(
+            $parent_slug,
+            __('Validation Settings', 'product-launch'),
+            __('Validation Settings', 'product-launch'),
+            'manage_network_options',
+            'product-launch-validation-settings',
+            array($this, 'render_settings_page')
         );
     }
 
@@ -83,9 +140,16 @@ class PL_Validation_Admin {
      * Enqueue admin assets
      */
     public function enqueue_admin_assets($hook) {
-        if (strpos($hook, 'product-launch-validation') === false && strpos($hook, 'pl-validation') === false) {
+        if (false === strpos($hook, 'product-launch-validation')
+            && false === strpos($hook, 'pl-validation')
+            && false === strpos($hook, 'product-launch-network-validation')) {
             return;
         }
+
+        $current_page = isset($_GET['page']) ? $this->sanitize_page_slug(wp_unslash($_GET['page'])) : '';
+        $base_page_slug = $current_page ?: (is_network_admin() ? 'product-launch-network-validation' : 'product-launch-validation');
+        $base_page_url = $this->get_admin_page_url($base_page_slug);
+        $context = is_network_admin() ? 'network_admin' : 'admin';
 
         wp_enqueue_style(
             'pl-validation-admin',
@@ -107,7 +171,8 @@ class PL_Validation_Admin {
             'nonce'   => wp_create_nonce('pl_validation_admin'),
         ));
 
-        if (false !== strpos($hook, 'product-launch_page_product-launch-validation')) {
+        if (false !== strpos($hook, 'product-launch_page_product-launch-validation')
+            || false !== strpos($hook, 'product-launch-network-settings_page_product-launch-network-validation')) {
             wp_enqueue_style(
                 'pl-validation-frontend',
                 PL_PLUGIN_URL . 'assets/css/validation-frontend.css',
@@ -127,9 +192,9 @@ class PL_Validation_Admin {
                 'ajaxurl' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('pl_validation_frontend'),
                 'isLoggedIn' => is_user_logged_in(),
-                'loginUrl' => wp_login_url(admin_url('admin.php?page=product-launch-validation')),
-                'context' => 'admin',
-                'redirectBase' => admin_url('admin.php?page=product-launch-validation'),
+                'loginUrl' => wp_login_url($base_page_url),
+                'context' => $context,
+                'redirectBase' => $base_page_url,
                 'strings' => array(
                     'loginRequired' => __('Please log in to validate your business idea.', 'product-launch'),
                     'ideaRequired' => __('Please enter your business idea.', 'product-launch'),
@@ -171,6 +236,11 @@ class PL_Validation_Admin {
         );
 
         $embedded = (bool) $embedded;
+
+        $portal_slug = is_network_admin() ? 'product-launch-network-validation' : 'product-launch-validation';
+        $portal_base_url = $this->get_admin_page_url($portal_slug);
+        $list_page_slug = is_network_admin() ? 'product-launch-network-validation-list' : 'product-launch-validation-list';
+        $list_page_url = $this->get_admin_page_url($list_page_slug);
 
         include PL_PLUGIN_DIR . 'templates/admin/validation-dashboard.php';
     }
@@ -228,7 +298,8 @@ class PL_Validation_Admin {
             $validations = $wpdb->get_results($list_query);
         }
 
-        $list_base_slug = 'product-launch-validation-list';
+        $list_base_slug = is_network_admin() ? 'product-launch-network-validation-list' : 'product-launch-validation-list';
+        $list_base_url = $this->get_admin_page_url($list_base_slug);
         include PL_PLUGIN_DIR . 'templates/admin/validation-list.php';
     }
 
@@ -236,6 +307,20 @@ class PL_Validation_Admin {
      * Render settings page
      */
     public function render_settings_page() {
+        $capability = is_network_admin() ? 'manage_network_options' : 'manage_options';
+
+        if (!current_user_can($capability)) {
+            wp_die(__('You do not have sufficient permissions to access this page.', 'product-launch'));
+        }
+
+        if (is_multisite() && !is_network_admin()) {
+            echo '<div class="wrap"><h1>' . esc_html__('Validation Settings', 'product-launch') . '</h1>';
+            echo '<p>' . esc_html__('Validation settings are managed from the Product Launch network settings area.', 'product-launch') . '</p>';
+            echo '<p><a class="button button-primary" href="' . esc_url(network_admin_url('admin.php?page=product-launch-validation-settings')) . '">' . esc_html__('Open Network Validation Settings', 'product-launch') . '</a></p>';
+            echo '</div>';
+            return;
+        }
+
         if (isset($_POST['pl_validation_settings_submit'])) {
             check_admin_referer('pl_validation_settings');
 
@@ -245,29 +330,70 @@ class PL_Validation_Admin {
             $cache_duration = isset($_POST['pl_validation_cache_duration']) ? absint($_POST['pl_validation_cache_duration']) : 24;
             $auto_enrich = isset($_POST['pl_validation_auto_enrich']) ? 1 : 0;
 
-            update_option('pl_validation_api_key', $api_key);
-            update_option('pl_validation_api_endpoint', $api_endpoint);
-            update_option('pl_validation_default_limit', $default_limit);
-            update_option('pl_validation_cache_duration', $cache_duration);
-            update_option('pl_validation_auto_enrich', $auto_enrich);
+            pl_update_validation_option('pl_validation_api_key', $api_key);
+            pl_update_validation_option('pl_validation_api_endpoint', $api_endpoint);
+            pl_update_validation_option('pl_validation_default_limit', max(1, $default_limit));
+            pl_update_validation_option('pl_validation_cache_duration', max(1, $cache_duration));
+            pl_update_validation_option('pl_validation_auto_enrich', $auto_enrich ? 1 : 0);
 
             echo '<div class="notice notice-success"><p>' . esc_html__('Settings saved successfully!', 'product-launch') . '</p></div>';
         }
 
-        $api_key = get_option('pl_validation_api_key', 'exp_live_05663cf87e3b406780a939cf079e59f3');
-        $api_endpoint = get_option('pl_validation_api_endpoint', 'https://api.explodingstartup.com/api/ideas');
-        $default_limit = get_option('pl_validation_default_limit', 3);
-        $cache_duration = get_option('pl_validation_cache_duration', 24);
-        $auto_enrich = get_option('pl_validation_auto_enrich', 1);
+        $api_key = pl_get_validation_option('pl_validation_api_key', 'exp_live_05663cf87e3b406780a939cf079e59f3');
+        $api_endpoint = pl_get_validation_option('pl_validation_api_endpoint', 'https://api.explodingstartup.com/api/ideas');
+        $default_limit = pl_get_validation_option('pl_validation_default_limit', 3);
+        $cache_duration = pl_get_validation_option('pl_validation_cache_duration', 24);
+        $auto_enrich = pl_get_validation_option('pl_validation_auto_enrich', 1);
 
         include PL_PLUGIN_DIR . 'templates/admin/validation-settings.php';
+    }
+
+    /**
+     * Render notice for subsites directing to network settings.
+     */
+    public function render_settings_redirect_page() {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have sufficient permissions to access this page.', 'product-launch'));
+        }
+
+        echo '<div class="wrap"><h1>' . esc_html__('Validation Settings', 'product-launch') . '</h1>';
+        echo '<div class="notice notice-info"><p>' . esc_html__('Validation settings are now managed from the Product Launch network admin.', 'product-launch') . '</p></div>';
+        echo '<p><a class="button button-primary" href="' . esc_url(network_admin_url('admin.php?page=product-launch-validation-settings')) . '">' . esc_html__('Go to Network Validation Settings', 'product-launch') . '</a></p>';
+        echo '</div>';
+    }
+
+    /**
+     * Sanitize a page slug for use in URLs.
+     */
+    private function sanitize_page_slug($slug) {
+        $slug = strtolower((string) $slug);
+
+        return preg_replace('/[^a-z0-9_-]/', '', $slug);
+    }
+
+    /**
+     * Build the appropriate admin URL for a given page slug.
+     */
+    private function get_admin_page_url($slug) {
+        $slug = $this->sanitize_page_slug($slug);
+
+        $base = is_network_admin() ? network_admin_url('admin.php?page=') : admin_url('admin.php?page=');
+
+        return $base . $slug;
     }
 
     /**
      * Render unified portal page for clients and administrators.
      */
     public function render_portal_page() {
-        $base_url = admin_url('admin.php?page=product-launch-validation');
+        $page_slug = isset($_GET['page']) ? $this->sanitize_page_slug(wp_unslash($_GET['page'])) : '';
+        if (empty($page_slug)) {
+            $page_slug = is_network_admin() ? 'product-launch-network-validation' : 'product-launch-validation';
+        }
+
+        $base_url = $this->get_admin_page_url($page_slug);
+        $context = is_network_admin() ? 'network_admin' : 'admin';
+
         $validation_id = isset($_GET['validation_id']) ? absint($_GET['validation_id']) : 0;
         $user_id = get_current_user_id();
 
@@ -279,7 +405,7 @@ class PL_Validation_Admin {
             $validation = $access->get_validation($validation_id, $user_id);
 
             if ($validation) {
-                $back_link_url = apply_filters('pl_validation_report_back_url', $base_url, 'admin');
+                $back_link_url = apply_filters('pl_validation_report_back_url', $base_url, $context);
                 include PL_PLUGIN_DIR . 'templates/frontend/validation-report.php';
             } else {
                 echo '<div class="notice notice-error"><p>' . esc_html__('Validation not found or you do not have permission to view it.', 'product-launch') . '</p></div>';
@@ -289,7 +415,7 @@ class PL_Validation_Admin {
             return;
         }
 
-        if (current_user_can('manage_options')) {
+        if (current_user_can('manage_options') || current_user_can('manage_network_options')) {
             echo '<div class="pl-validation-portal-section pl-validation-portal-section--dashboard">';
             $this->render_dashboard_page(true);
             echo '</div>';
@@ -307,8 +433,8 @@ class PL_Validation_Admin {
             'redirect' => ''
         );
 
-        $validation_form_url = apply_filters('pl_validation_form_url', $base_url, 'admin');
-        $validation_report_base = apply_filters('pl_validation_report_base', $base_url, 'admin');
+        $validation_form_url = apply_filters('pl_validation_form_url', $base_url, $context);
+        $validation_report_base = apply_filters('pl_validation_report_base', $base_url, $context);
 
         echo '<div class="pl-validation-portal-grid">';
 

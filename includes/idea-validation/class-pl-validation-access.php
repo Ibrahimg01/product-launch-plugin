@@ -17,7 +17,7 @@ class PL_Validation_Access {
         }
         
         // Admins can view all
-        if (user_can($user_id, 'manage_options')) {
+        if (user_can($user_id, 'manage_options') || user_can($user_id, 'manage_network_options')) {
             return true;
         }
         
@@ -46,7 +46,7 @@ class PL_Validation_Access {
         }
         
         // Admins can edit all
-        if (user_can($user_id, 'manage_options')) {
+        if (user_can($user_id, 'manage_options') || user_can($user_id, 'manage_network_options')) {
             return true;
         }
         

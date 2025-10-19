@@ -12,6 +12,8 @@ $wrapper_class = isset($embedded) && $embedded
     ? 'pl-validation-dashboard pl-validation-dashboard--embedded'
     : 'wrap pl-validation-dashboard';
 $heading_tag = (isset($embedded) && $embedded) ? 'h2' : 'h1';
+$portal_base_url = isset($portal_base_url) ? $portal_base_url : admin_url('admin.php?page=product-launch-validation');
+$list_page_url = isset($list_page_url) ? $list_page_url : admin_url('admin.php?page=product-launch-validation-list');
 ?>
 
 <div class="<?php echo esc_attr($wrapper_class); ?>">
@@ -103,7 +105,7 @@ $heading_tag = (isset($embedded) && $embedded) ? 'h2' : 'h1';
                             </td>
                             <td><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($validation->created_at))); ?></td>
                             <td>
-                                <a href="<?php echo esc_url(admin_url('admin.php?page=product-launch-validation&validation_id=' . absint($validation->id))); ?>" class="button button-small">
+                                <a href="<?php echo esc_url(add_query_arg('validation_id', absint($validation->id), $portal_base_url)); ?>" class="button button-small">
                                     <?php _e('View', 'product-launch'); ?>
                                 </a>
                             </td>
@@ -113,7 +115,7 @@ $heading_tag = (isset($embedded) && $embedded) ? 'h2' : 'h1';
             </table>
 
             <p class="pl-view-all">
-                <a href="<?php echo esc_url(admin_url('admin.php?page=product-launch-validation-list')); ?>" class="button">
+                <a href="<?php echo esc_url($list_page_url); ?>" class="button">
                     <?php _e('View All Validations', 'product-launch'); ?>
                 </a>
             </p>

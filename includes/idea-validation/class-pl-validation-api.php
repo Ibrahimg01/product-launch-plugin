@@ -10,11 +10,40 @@ class PL_Validation_API {
     
     private $api_base = 'https://api.explodingstartup.com/api/ideas';
     private $api_key = 'exp_live_05663cf87e3b406780a939cf079e59f3';
+
+    /**
+     * Retrieve the API base endpoint considering network/site overrides.
+     */
+    private function get_api_base() {
+        $base = pl_get_validation_option('pl_validation_api_endpoint', $this->api_base);
+
+        if (empty($base)) {
+            $base = $this->api_base;
+        }
+
+        return untrailingslashit($base);
+    }
+
+    /**
+     * Retrieve the API key considering network/site overrides.
+     */
+    private function get_api_key() {
+        $key = pl_get_validation_option('pl_validation_api_key', $this->api_key);
+
+        if (empty($key)) {
+            $key = $this->api_key;
+        }
+
+        return $key;
+    }
     
     /**
      * Submit new idea for validation
      */
     public function submit_idea($business_idea, $user_id, $site_id) {
+        $api_base = $this->get_api_base();
+        $api_key = $this->get_api_key();
+
         $body = array(
             'business_idea' => $business_idea,
             'enriched' => true,
@@ -25,10 +54,10 @@ class PL_Validation_API {
             )
         );
         
-        $response = wp_remote_post($this->api_base, array(
+        $response = wp_remote_post($api_base, array(
             'headers' => array(
                 'Content-Type' => 'application/json',
-                'X-API-Key' => $this->api_key
+                'X-API-Key' => $api_key
             ),
             'body' => wp_json_encode($body),
             'timeout' => 60
@@ -65,16 +94,16 @@ class PL_Validation_API {
      * Get validation by external ID
      */
     public function get_validation($external_id, $section = 'core') {
-        $endpoint = "{$this->api_base}/{$external_id}";
-        
+        $endpoint = trailingslashit($this->get_api_base()) . $external_id;
+
         if ($section !== 'core') {
             $endpoint .= "/{$section}";
         }
-        
+
         $response = wp_remote_get($endpoint, array(
             'headers' => array(
                 'Content-Type' => 'application/json',
-                'X-API-Key' => $this->api_key
+                'X-API-Key' => $this->get_api_key()
             ),
             'timeout' => 45
         ));
