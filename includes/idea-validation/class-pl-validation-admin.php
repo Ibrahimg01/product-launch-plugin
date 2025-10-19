@@ -295,6 +295,7 @@ class PL_Validation_Admin {
         }
 
         $library_content = do_shortcode('[pl_ideas_library]');
+        $discovery_url = is_network_admin() ? $this->get_admin_page_url('product-launch-network-validation') : '';
 
         include PL_PLUGIN_DIR . 'templates/admin/ideas-library.php';
     }

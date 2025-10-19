@@ -341,6 +341,8 @@ jQuery(document).ready(function ($) {
 
             const count = parseInt(meta.count, 10) || fallbackCount || 0;
             const query = meta.query ? escapeHtml(meta.query) : '';
+            const isDemo = !!meta.is_demo;
+            const demoMessage = meta.demo_message ? escapeHtml(meta.demo_message) : '';
 
             if (count <= 0) {
                 return '';
@@ -357,11 +359,17 @@ jQuery(document).ready(function ($) {
 
             const libraryLink = networkLinks.library ? '<a href="' + networkLinks.library + '">' + escapeHtml(networkStrings.libraryLinkLabel || 'Open Ideas Library') + '</a>' : '';
 
+            let rendered = text;
+
             if (libraryLink) {
-                text += ' · ' + libraryLink;
+                rendered += ' · ' + libraryLink;
             }
 
-            return '<p class="pl-network-search-meta">' + text + '</p>';
+            if (isDemo && demoMessage) {
+                rendered += '<br><span class="pl-network-demo-note">' + demoMessage + '</span>';
+            }
+
+            return '<p class="pl-network-search-meta">' + rendered + '</p>';
         }
 
         function showFeedback(type, message) {
