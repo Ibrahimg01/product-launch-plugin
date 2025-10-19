@@ -386,31 +386,39 @@ class PL_Ideas_Library {
     }
 
     /**
-     * Phase 1: Market Research.
+     * Phase 1: Market Clarity.
      */
     private function populate_phase_1($project_id, $idea_data, $external_id) {
         global $wpdb;
         $table = $wpdb->prefix . 'pl_phase_data';
 
-        $trends = $this->api->get_cached_section($external_id, 'enrichment/trends');
-        if (!$trends) {
-            $trends = $this->api->get_validation($external_id, 'enrichment/trends');
-        }
-
-        $competitors = $this->api->get_cached_section($external_id, 'enrichment/competitors');
-        if (!$competitors) {
-            $competitors = $this->api->get_validation($external_id, 'enrichment/competitors');
-        }
-
-        $markets = $this->api->get_cached_section($external_id, 'enrichment/markets');
-        if (!$markets) {
-            $markets = $this->api->get_validation($external_id, 'enrichment/markets');
-        }
+        $analysis = isset($idea_data['analysis']) && is_array($idea_data['analysis']) ? $idea_data['analysis'] : array();
+        $branding = $this->get_section_data($external_id, 'enrichment/branding');
+        $trends = $this->get_section_data($external_id, 'enrichment/trends');
+        $competitors = $this->get_section_data($external_id, 'enrichment/competitors');
+        $markets = $this->get_section_data($external_id, 'enrichment/markets');
 
         $phase_data = array(
-            'market_trends' => $trends,
-            'competitors' => $competitors,
-            'target_markets' => $markets,
+            'target_audience' => $this->first_non_empty(
+                isset($idea_data['target_audience']) ? $idea_data['target_audience'] : '',
+                isset($branding['target_audiences']) ? $branding['target_audiences'] : '',
+                isset($analysis['audience']) ? $analysis['audience'] : ''
+            ),
+            'pain_points' => $this->first_non_empty(
+                isset($idea_data['customer_pain_points']) ? $idea_data['customer_pain_points'] : '',
+                isset($analysis['problem']) ? $analysis['problem'] : ''
+            ),
+            'value_proposition' => $this->first_non_empty(
+                isset($idea_data['value_proposition']) ? $idea_data['value_proposition'] : '',
+                isset($branding['value_proposition']) ? $branding['value_proposition'] : ''
+            ),
+            'market_size' => $this->format_string_list($markets),
+            'competitors' => $this->format_string_list($competitors),
+            'positioning' => $this->first_non_empty(
+                isset($branding['differentiator']) ? $branding['differentiator'] : '',
+                isset($idea_data['ai_assessment_summary']) ? $idea_data['ai_assessment_summary'] : ''
+            ),
+            'market_trends' => $this->format_string_list($trends),
             'validation_score' => isset($idea_data['adjusted_score']) ? (int) $idea_data['adjusted_score'] : 0,
             'confidence_level' => isset($idea_data['confidence_level']) ? $idea_data['confidence_level'] : null,
         );
@@ -418,7 +426,7 @@ class PL_Ideas_Library {
         $wpdb->replace($table, array(
             'project_id' => $project_id,
             'phase_number' => 1,
-            'phase_name' => 'Market Research',
+            'phase_name' => 'Market Clarity',
             'phase_data' => wp_json_encode($phase_data),
             'status' => 'completed',
             'completed_at' => current_time('mysql'),
@@ -428,26 +436,42 @@ class PL_Ideas_Library {
     }
 
     /**
-     * Phase 2: Product Definition.
+     * Phase 2: Create Offer.
      */
     private function populate_phase_2($project_id, $idea_data, $external_id) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundInImplementedInterface
         global $wpdb;
         $table = $wpdb->prefix . 'pl_phase_data';
 
         $analysis = isset($idea_data['analysis']) && is_array($idea_data['analysis']) ? $idea_data['analysis'] : array();
+        $branding = $this->get_section_data($external_id, 'enrichment/branding');
 
         $phase_data = array(
-            'problem_statement' => isset($analysis['problem']) ? $analysis['problem'] : '',
-            'solution' => isset($analysis['solution']) ? $analysis['solution'] : '',
-            'key_features' => isset($analysis['key_features']) ? $analysis['key_features'] : array(),
-            'value_proposition' => isset($idea_data['value_proposition']) ? $idea_data['value_proposition'] : '',
-            'unique_selling_points' => isset($analysis['recommendations']) ? $analysis['recommendations'] : array(),
+            'main_offer' => $this->first_non_empty(
+                isset($analysis['solution']) ? $analysis['solution'] : '',
+                isset($idea_data['business_idea']) ? $idea_data['business_idea'] : '',
+                isset($idea_data['summary']) ? $idea_data['summary'] : ''
+            ),
+            'value_proposition' => $this->first_non_empty(
+                isset($idea_data['value_proposition']) ? $idea_data['value_proposition'] : '',
+                isset($branding['value_proposition']) ? $branding['value_proposition'] : ''
+            ),
+            'pricing_strategy' => $this->first_non_empty(
+                isset($analysis['business_model']) ? $analysis['business_model'] : '',
+                isset($analysis['pricing']) ? $analysis['pricing'] : '',
+                isset($idea_data['monetization_strategy']) ? $idea_data['monetization_strategy'] : ''
+            ),
+            'bonuses' => $this->format_string_list(isset($analysis['recommendations']) ? $analysis['recommendations'] : array()),
+            'guarantee' => $this->first_non_empty(
+                isset($idea_data['validation_opportunities']) ? $idea_data['validation_opportunities'] : '',
+                isset($analysis['risk_mitigation']) ? $analysis['risk_mitigation'] : ''
+            ),
+            'urgency_scarcity' => $this->format_string_list(isset($idea_data['action_plan']) ? $idea_data['action_plan'] : array()),
         );
 
         $wpdb->replace($table, array(
             'project_id' => $project_id,
             'phase_number' => 2,
-            'phase_name' => 'Product Definition',
+            'phase_name' => 'Create Offer',
             'phase_data' => wp_json_encode($phase_data),
             'status' => 'in_progress',
             'created_at' => current_time('mysql'),
@@ -456,28 +480,42 @@ class PL_Ideas_Library {
     }
 
     /**
-     * Phase 3: Branding & Positioning.
+     * Phase 3: Create Service.
      */
     private function populate_phase_3($project_id, $idea_data, $external_id) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundInImplementedInterface
         global $wpdb;
         $table = $wpdb->prefix . 'pl_phase_data';
 
-        $branding = $this->api->get_cached_section($external_id, 'enrichment/branding');
-        if (!$branding) {
-            $branding = $this->api->get_validation($external_id, 'enrichment/branding');
-        }
+        $analysis = isset($idea_data['analysis']) && is_array($idea_data['analysis']) ? $idea_data['analysis'] : array();
+        $branding = $this->get_section_data($external_id, 'enrichment/branding');
 
         $phase_data = array(
-            'brand_names' => isset($branding['brand_names']) ? $branding['brand_names'] : array(),
-            'positioning' => isset($branding['differentiator']) ? $branding['differentiator'] : '',
-            'target_audiences' => isset($branding['target_audiences']) ? $branding['target_audiences'] : array(),
-            'messaging' => isset($branding['value_proposition']) ? $branding['value_proposition'] : '',
+            'service_concept' => $this->first_non_empty(
+                isset($analysis['solution']) ? $analysis['solution'] : '',
+                isset($idea_data['business_idea']) ? $idea_data['business_idea'] : ''
+            ),
+            'service_packaging' => $this->format_string_list(isset($analysis['key_features']) ? $analysis['key_features'] : array()),
+            'delivery_method' => $this->format_string_list(isset($branding['implementation_strategies']) ? $branding['implementation_strategies'] : array()),
+            'pricing_model' => $this->first_non_empty(
+                isset($analysis['business_model']) ? $analysis['business_model'] : '',
+                isset($analysis['pricing']) ? $analysis['pricing'] : '',
+                isset($idea_data['monetization_strategy']) ? $idea_data['monetization_strategy'] : ''
+            ),
+            'client_onboarding' => $this->first_non_empty(
+                isset($idea_data['validation_opportunities']) ? $idea_data['validation_opportunities'] : '',
+                isset($analysis['risk_mitigation']) ? $analysis['risk_mitigation'] : ''
+            ),
+            'service_framework' => $this->format_string_list(isset($idea_data['action_plan']) ? $idea_data['action_plan'] : array()),
+            'scalability_plan' => $this->first_non_empty(
+                isset($idea_data['expansion_ideas']) ? $idea_data['expansion_ideas'] : '',
+                isset($analysis['growth']) ? $analysis['growth'] : ''
+            ),
         );
 
         $wpdb->replace($table, array(
             'project_id' => $project_id,
             'phase_number' => 3,
-            'phase_name' => 'Branding & Positioning',
+            'phase_name' => 'Create Service',
             'phase_data' => wp_json_encode($phase_data),
             'status' => 'pending',
             'created_at' => current_time('mysql'),
@@ -486,27 +524,50 @@ class PL_Ideas_Library {
     }
 
     /**
-     * Phase 4: Technical Planning.
+     * Phase 4: Build Funnel.
      */
     private function populate_phase_4($project_id, $idea_data, $external_id) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundInImplementedInterface
         global $wpdb;
         $table = $wpdb->prefix . 'pl_phase_data';
 
-        $branding = $this->api->get_cached_section($external_id, 'enrichment/branding');
-        if (!$branding) {
-            $branding = $this->api->get_validation($external_id, 'enrichment/branding');
-        }
+        $analysis = isset($idea_data['analysis']) && is_array($idea_data['analysis']) ? $idea_data['analysis'] : array();
+        $branding = $this->get_section_data($external_id, 'enrichment/branding');
 
         $phase_data = array(
-            'implementation_strategies' => isset($branding['implementation_strategies']) ? $branding['implementation_strategies'] : array(),
-            'technical_requirements' => array(),
-            'development_roadmap' => array(),
+            'funnel_strategy' => $this->first_non_empty(
+                isset($idea_data['market_validation_summary']) ? $idea_data['market_validation_summary'] : '',
+                $this->format_string_list(isset($idea_data['action_plan']) ? $idea_data['action_plan'] : array())
+            ),
+            'lead_magnet' => $this->first_non_empty(
+                isset($idea_data['validation_opportunities']) ? $idea_data['validation_opportunities'] : '',
+                $this->format_string_list(isset($analysis['recommendations']) ? $analysis['recommendations'] : array())
+            ),
+            'landing_pages' => $this->first_non_empty(
+                isset($analysis['solution']) ? $analysis['solution'] : '',
+                isset($idea_data['business_idea']) ? $idea_data['business_idea'] : ''
+            ),
+            'sales_pages' => $this->first_non_empty(
+                isset($idea_data['value_proposition']) ? $idea_data['value_proposition'] : '',
+                isset($branding['value_proposition']) ? $branding['value_proposition'] : ''
+            ),
+            'checkout_process' => $this->first_non_empty(
+                isset($analysis['business_model']) ? $analysis['business_model'] : '',
+                isset($idea_data['monetization_strategy']) ? $idea_data['monetization_strategy'] : ''
+            ),
+            'upsells_downsells' => $this->first_non_empty(
+                isset($idea_data['expansion_ideas']) ? $idea_data['expansion_ideas'] : '',
+                $this->format_string_list(isset($analysis['recommendations']) ? $analysis['recommendations'] : array())
+            ),
+            'funnel_optimization' => $this->first_non_empty(
+                isset($idea_data['ai_assessment_summary']) ? $idea_data['ai_assessment_summary'] : '',
+                isset($analysis['risk_mitigation']) ? $analysis['risk_mitigation'] : ''
+            ),
         );
 
         $wpdb->replace($table, array(
             'project_id' => $project_id,
             'phase_number' => 4,
-            'phase_name' => 'Technical Planning',
+            'phase_name' => 'Build Funnel',
             'phase_data' => wp_json_encode($phase_data),
             'status' => 'pending',
             'created_at' => current_time('mysql'),
@@ -515,28 +576,45 @@ class PL_Ideas_Library {
     }
 
     /**
-     * Phase 5: Marketing Strategy.
+     * Phase 5: Email Sequences.
      */
     private function populate_phase_5($project_id, $idea_data, $external_id) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundInImplementedInterface
         global $wpdb;
         $table = $wpdb->prefix . 'pl_phase_data';
 
-        $seo = $this->api->get_cached_section($external_id, 'enrichment/seo');
-        if (!$seo) {
-            $seo = $this->api->get_validation($external_id, 'enrichment/seo');
-        }
+        $analysis = isset($idea_data['analysis']) && is_array($idea_data['analysis']) ? $idea_data['analysis'] : array();
+        $branding = $this->get_section_data($external_id, 'enrichment/branding');
+        $seo = $this->get_section_data($external_id, 'enrichment/seo');
 
         $phase_data = array(
-            'seo_keywords' => isset($seo['seo_keywords']) ? $seo['seo_keywords'] : array(),
-            'content_strategy' => array(),
-            'social_media_plan' => array(),
-            'paid_advertising' => array(),
+            'email_strategy' => $this->first_non_empty(
+                isset($idea_data['market_validation_summary']) ? $idea_data['market_validation_summary'] : '',
+                $this->format_string_list(isset($idea_data['action_plan']) ? $idea_data['action_plan'] : array())
+            ),
+            'email_subject_lines' => $this->format_string_list(isset($seo['seo_keywords']) ? $seo['seo_keywords'] : array()),
+            'email_sequence_outline' => $this->format_string_list(isset($idea_data['action_plan']) ? $idea_data['action_plan'] : array()),
+            'email_cta' => $this->first_non_empty(
+                isset($idea_data['value_proposition']) ? $idea_data['value_proposition'] : '',
+                isset($analysis['solution']) ? $analysis['solution'] : ''
+            ),
+            'automation_setup' => $this->first_non_empty(
+                isset($idea_data['validation_opportunities']) ? $idea_data['validation_opportunities'] : '',
+                $this->format_string_list(isset($analysis['recommendations']) ? $analysis['recommendations'] : array())
+            ),
+            'personalization' => $this->first_non_empty(
+                isset($idea_data['target_audience']) ? $idea_data['target_audience'] : '',
+                isset($branding['target_audiences']) ? $branding['target_audiences'] : ''
+            ),
+            'testing_optimization' => $this->first_non_empty(
+                isset($idea_data['ai_assessment_summary']) ? $idea_data['ai_assessment_summary'] : '',
+                isset($analysis['risk_mitigation']) ? $analysis['risk_mitigation'] : ''
+            ),
         );
 
         $wpdb->replace($table, array(
             'project_id' => $project_id,
             'phase_number' => 5,
-            'phase_name' => 'Marketing Strategy',
+            'phase_name' => 'Email Sequences',
             'phase_data' => wp_json_encode($phase_data),
             'status' => 'pending',
             'created_at' => current_time('mysql'),
@@ -545,22 +623,36 @@ class PL_Ideas_Library {
     }
 
     /**
-     * Phase 6: Launch Preparation.
+     * Phase 6: Organic Posts.
      */
     private function populate_phase_6($project_id, $idea_data, $external_id) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundInImplementedInterface
         global $wpdb;
         $table = $wpdb->prefix . 'pl_phase_data';
 
+        $analysis = isset($idea_data['analysis']) && is_array($idea_data['analysis']) ? $idea_data['analysis'] : array();
+        $branding = $this->get_section_data($external_id, 'enrichment/branding');
+        $seo = $this->get_section_data($external_id, 'enrichment/seo');
+
         $phase_data = array(
-            'launch_checklist' => array(),
-            'beta_testing_plan' => array(),
-            'feedback_collection' => array(),
+            'content_strategy' => $this->first_non_empty(
+                isset($idea_data['market_validation_summary']) ? $idea_data['market_validation_summary'] : '',
+                isset($analysis['solution']) ? $analysis['solution'] : ''
+            ),
+            'platform_strategy' => $this->format_string_list(isset($branding['target_audiences']) ? $branding['target_audiences'] : array()),
+            'content_themes' => $this->format_string_list(isset($seo['seo_keywords']) ? $seo['seo_keywords'] : array()),
+            'post_ideas' => $this->format_string_list(isset($analysis['recommendations']) ? $analysis['recommendations'] : array()),
+            'engagement_strategy' => $this->first_non_empty(
+                isset($idea_data['validation_opportunities']) ? $idea_data['validation_opportunities'] : '',
+                isset($analysis['risk_mitigation']) ? $analysis['risk_mitigation'] : ''
+            ),
+            'hashtag_strategy' => $this->format_hashtags(isset($seo['seo_keywords']) ? $seo['seo_keywords'] : array()),
+            'content_calendar' => $this->format_string_list(isset($idea_data['action_plan']) ? $idea_data['action_plan'] : array()),
         );
 
         $wpdb->replace($table, array(
             'project_id' => $project_id,
             'phase_number' => 6,
-            'phase_name' => 'Launch Preparation',
+            'phase_name' => 'Organic Posts',
             'phase_data' => wp_json_encode($phase_data),
             'status' => 'pending',
             'created_at' => current_time('mysql'),
@@ -569,41 +661,44 @@ class PL_Ideas_Library {
     }
 
     /**
-     * Phase 7: Go-to-Market.
+     * Phase 7: Facebook Ads.
      */
     private function populate_phase_7($project_id, $idea_data, $external_id) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundInImplementedInterface
         global $wpdb;
         $table = $wpdb->prefix . 'pl_phase_data';
 
-        $reddit = $this->api->get_cached_section($external_id, 'platforms/reddit');
-        if (!$reddit) {
-            $reddit = $this->api->get_validation($external_id, 'platforms/reddit');
-        }
-
-        $hackernews = $this->api->get_cached_section($external_id, 'platforms/hackernews');
-        if (!$hackernews) {
-            $hackernews = $this->api->get_validation($external_id, 'platforms/hackernews');
-        }
-
-        $producthunt = $this->api->get_cached_section($external_id, 'platforms/producthunt');
-        if (!$producthunt) {
-            $producthunt = $this->api->get_validation($external_id, 'platforms/producthunt');
-        }
+        $analysis = isset($idea_data['analysis']) && is_array($idea_data['analysis']) ? $idea_data['analysis'] : array();
+        $branding = $this->get_section_data($external_id, 'enrichment/branding');
 
         $phase_data = array(
-            'launch_channels' => array(
-                'reddit' => $reddit,
-                'hackernews' => $hackernews,
-                'producthunt' => $producthunt,
+            'campaign_strategy' => $this->first_non_empty(
+                isset($idea_data['ai_assessment_summary']) ? $idea_data['ai_assessment_summary'] : '',
+                isset($idea_data['market_validation_summary']) ? $idea_data['market_validation_summary'] : ''
             ),
-            'pr_strategy' => array(),
-            'influencer_outreach' => array(),
+            'audience_targeting' => $this->first_non_empty(
+                isset($idea_data['target_audience']) ? $idea_data['target_audience'] : '',
+                isset($branding['target_audiences']) ? $branding['target_audiences'] : ''
+            ),
+            'ad_creative' => $this->format_string_list(isset($analysis['key_features']) ? $analysis['key_features'] : array()),
+            'ad_copy' => $this->first_non_empty(
+                isset($idea_data['value_proposition']) ? $idea_data['value_proposition'] : '',
+                $this->format_string_list(isset($analysis['recommendations']) ? $analysis['recommendations'] : array())
+            ),
+            'budget_bidding' => $this->first_non_empty(
+                isset($idea_data['monetization_strategy']) ? $idea_data['monetization_strategy'] : '',
+                isset($idea_data['validation_opportunities']) ? $idea_data['validation_opportunities'] : ''
+            ),
+            'campaign_structure' => $this->format_string_list(isset($idea_data['action_plan']) ? $idea_data['action_plan'] : array()),
+            'tracking_optimization' => $this->first_non_empty(
+                isset($idea_data['ai_assessment_summary']) ? $idea_data['ai_assessment_summary'] : '',
+                isset($analysis['risk_mitigation']) ? $analysis['risk_mitigation'] : ''
+            ),
         );
 
         $wpdb->replace($table, array(
             'project_id' => $project_id,
             'phase_number' => 7,
-            'phase_name' => 'Go-to-Market',
+            'phase_name' => 'Facebook Ads',
             'phase_data' => wp_json_encode($phase_data),
             'status' => 'pending',
             'created_at' => current_time('mysql'),
@@ -612,22 +707,56 @@ class PL_Ideas_Library {
     }
 
     /**
-     * Phase 8: Growth & Scale.
+     * Phase 8: Launch.
      */
     private function populate_phase_8($project_id, $idea_data, $external_id) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundInImplementedInterface
         global $wpdb;
         $table = $wpdb->prefix . 'pl_phase_data';
 
+        $analysis = isset($idea_data['analysis']) && is_array($idea_data['analysis']) ? $idea_data['analysis'] : array();
+        $reddit = $this->get_section_data($external_id, 'platforms/reddit');
+        $hackernews = $this->get_section_data($external_id, 'platforms/hackernews');
+        $producthunt = $this->get_section_data($external_id, 'platforms/producthunt');
+
+        $reddit_text = $this->format_string_list($reddit);
+        $hackernews_text = $this->format_string_list($hackernews);
+        $producthunt_text = $this->format_string_list($producthunt);
+
         $phase_data = array(
-            'growth_metrics' => array(),
-            'scaling_plan' => array(),
-            'optimization_strategies' => array(),
+            'launch_strategy' => $this->first_non_empty(
+                isset($idea_data['ai_assessment_summary']) ? $idea_data['ai_assessment_summary'] : '',
+                isset($idea_data['market_validation_summary']) ? $idea_data['market_validation_summary'] : ''
+            ),
+            'launch_timeline' => $this->format_string_list(isset($idea_data['action_plan']) ? $idea_data['action_plan'] : array()),
+            'pre_launch_checklist' => $this->first_non_empty(
+                isset($idea_data['validation_opportunities']) ? $idea_data['validation_opportunities'] : '',
+                $this->format_string_list(isset($analysis['recommendations']) ? $analysis['recommendations'] : array())
+            ),
+            'launch_day_plan' => $this->first_non_empty(
+                $producthunt_text,
+                $this->format_string_list(isset($analysis['key_features']) ? $analysis['key_features'] : array())
+            ),
+            'communication_plan' => $this->first_non_empty(
+                $reddit_text,
+                $hackernews_text,
+                isset($idea_data['value_proposition']) ? $idea_data['value_proposition'] : ''
+            ),
+            'contingency_plan' => $this->first_non_empty(
+                isset($analysis['risk_mitigation']) ? $analysis['risk_mitigation'] : '',
+                isset($analysis['challenges']) ? $analysis['challenges'] : '',
+                isset($idea_data['ai_assessment_summary']) ? $idea_data['ai_assessment_summary'] : ''
+            ),
+            'post_launch_analysis' => $this->first_non_empty(
+                isset($idea_data['expansion_ideas']) ? $idea_data['expansion_ideas'] : '',
+                isset($analysis['next_steps']) ? $analysis['next_steps'] : '',
+                $producthunt_text
+            ),
         );
 
         $wpdb->replace($table, array(
             'project_id' => $project_id,
             'phase_number' => 8,
-            'phase_name' => 'Growth & Scale',
+            'phase_name' => 'Launch',
             'phase_data' => wp_json_encode($phase_data),
             'status' => 'pending',
             'created_at' => current_time('mysql'),
@@ -645,6 +774,155 @@ class PL_Ideas_Library {
         $url = home_url('/project/');
 
         return add_query_arg('id', (int) $project_id, $url);
+    }
+
+    /**
+     * Retrieve cached enrichment data with API fallback.
+     *
+     * @param string $external_id External validation ID.
+     * @param string $section     Section path.
+     * @return array
+     */
+    private function get_section_data($external_id, $section) {
+        $data = $this->api->get_cached_section($external_id, $section);
+
+        if (!$data) {
+            $data = $this->api->get_validation($external_id, $section);
+        }
+
+        return is_array($data) ? $data : array();
+    }
+
+    /**
+     * Convert mixed data structures into newline separated text.
+     *
+     * @param mixed $items Items to format.
+     * @return string
+     */
+    private function format_string_list($items) {
+        if (empty($items)) {
+            return '';
+        }
+
+        if (is_string($items)) {
+            return $items;
+        }
+
+        if (is_scalar($items)) {
+            return (string) $items;
+        }
+
+        if (!is_array($items)) {
+            return '';
+        }
+
+        $parts = array();
+
+        if ($this->is_assoc_array($items)) {
+            foreach ($items as $value) {
+                $text = $this->format_string_list($value);
+
+                if ('' !== $text) {
+                    $parts[] = $text;
+                }
+            }
+
+            $parts = array_unique(array_map('trim', array_filter($parts)));
+
+            return implode(' — ', $parts);
+        }
+
+        foreach ($items as $item) {
+            $text = $this->format_string_list($item);
+
+            if ('' !== $text) {
+                $parts[] = $text;
+            }
+        }
+
+        $parts = array_unique(array_map('trim', array_filter($parts)));
+
+        return implode("\n", $parts);
+    }
+
+    /**
+     * Determine if an array is associative.
+     *
+     * @param array $array Array to inspect.
+     * @return bool
+     */
+    private function is_assoc_array($array) {
+        if (!is_array($array)) {
+            return false;
+        }
+
+        return array_keys($array) !== range(0, count($array) - 1);
+    }
+
+    /**
+     * Get the first non-empty value from a list of possibilities.
+     *
+     * @param mixed ...$values Values to evaluate.
+     * @return string
+     */
+    private function first_non_empty(...$values) {
+        foreach ($values as $value) {
+            if (is_array($value)) {
+                $text = $this->format_string_list($value);
+
+                if ('' !== trim($text)) {
+                    return $text;
+                }
+            } elseif (is_string($value) && '' !== trim($value)) {
+                return $value;
+            } elseif (!empty($value) && !is_array($value)) {
+                return (string) $value;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Generate space separated hashtags from keyword list.
+     *
+     * @param mixed $keywords Keywords source.
+     * @return string
+     */
+    private function format_hashtags($keywords) {
+        if (empty($keywords)) {
+            return '';
+        }
+
+        if (!is_array($keywords)) {
+            $keywords = explode(',', (string) $keywords);
+        }
+
+        $hashtags = array();
+
+        foreach ($keywords as $keyword) {
+            if (is_array($keyword)) {
+                $keyword = $this->format_string_list($keyword);
+            }
+
+            $keyword = is_string($keyword) ? trim($keyword) : '';
+
+            if ('' === $keyword) {
+                continue;
+            }
+
+            $normalized = preg_replace('/[^a-z0-9]+/i', '', strtolower($keyword));
+
+            if ('' === $normalized) {
+                continue;
+            }
+
+            $hashtags[] = '#' . $normalized;
+        }
+
+        $hashtags = array_unique($hashtags);
+
+        return implode(' ', $hashtags);
     }
 
     /**
