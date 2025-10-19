@@ -171,6 +171,10 @@ class PL_Ideas_Library {
             'enrichedOnly' => $atts['enriched_only'],
             'detailsUrl' => $details_url_base,
             'categoryLabels' => $this->category_labels,
+            'adminContext' => (is_admin() && current_user_can('edit_posts')),
+            'adminViewLabel' => __('View Report', 'product-launch'),
+            'adminPushLabel' => __('Push to 8 Phases', 'product-launch'),
+            'adminDisabledTooltip' => __('Demo idea — no report available.', 'product-launch'),
         ));
 
         ob_start();
@@ -218,6 +222,10 @@ class PL_Ideas_Library {
             'ajaxurlRelative' => $ajax_url_relative,
             'nonce' => wp_create_nonce('pl_library'),
             'libraryUrl' => $library_url,
+            'adminContext' => (is_admin() && current_user_can('edit_posts')),
+            'adminViewLabel' => __('View Report', 'product-launch'),
+            'adminPushLabel' => __('Push to 8 Phases', 'product-launch'),
+            'adminDisabledTooltip' => __('Demo idea — no report available.', 'product-launch'),
         ));
 
         ob_start();
@@ -620,6 +628,7 @@ class PL_Ideas_Library {
         $idea['id'] = 'local-' . (int) $validation->id;
         $idea['source_type'] = 'validation';
         $idea['local_validation_id'] = (int) $validation->id;
+        $idea['has_report'] = true;
         $idea['business_idea'] = $validation->business_idea;
         $idea['validation_score'] = (int) $validation->validation_score;
         $idea['adjusted_score'] = isset($core['adjusted_score']) ? (int) $core['adjusted_score'] : (int) $validation->validation_score;
@@ -875,6 +884,10 @@ class PL_Ideas_Library {
             $remote_items = array_map(function ($idea) {
                 if (is_array($idea) && !isset($idea['source_type'])) {
                     $idea['source_type'] = 'library';
+                }
+
+                if (is_array($idea) && !isset($idea['has_report'])) {
+                    $idea['has_report'] = false;
                 }
 
                 return $idea;

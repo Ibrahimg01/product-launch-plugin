@@ -269,6 +269,26 @@ if (!defined('ABSPATH')) {
                 }
             }
 
+            const adminContext = !!plLibrary.adminContext;
+            let adminActions = '';
+
+            if (adminContext) {
+                const ideaKey = idea.local_validation_id ? `local-${idea.local_validation_id}` : (idea.id || '');
+                const safeKey = escapeAttribute(ideaKey || '');
+                const hasReport = !!idea.has_report;
+                const viewLabel = escapeHtml(plLibrary.adminViewLabel || '<?php echo esc_js(__('View Report', 'product-launch')); ?>');
+                const pushLabel = escapeHtml(plLibrary.adminPushLabel || '<?php echo esc_js(__('Push to 8 Phases', 'product-launch')); ?>');
+                const tooltip = escapeAttribute(plLibrary.adminDisabledTooltip || '<?php echo esc_js(__('Demo idea — no report available.', 'product-launch')); ?>');
+                const disabledAttrs = hasReport ? '' : ` disabled aria-disabled="true" title="${tooltip}"`;
+
+                adminActions = `
+                    <div class="pl-admin-actions">
+                        <button type="button" class="button is-view-report" data-id="${safeKey}"${disabledAttrs}>${viewLabel}</button>
+                        <button type="button" class="button button-primary is-push-open" data-id="${safeKey}"${disabledAttrs}>${pushLabel}</button>
+                    </div>
+                `;
+            }
+
             return (
                 '<div class="pl-idea-card" data-id="' + escapeAttribute(ideaId) + '" data-source-type="' + escapeAttribute(sourceType) + '">' +
                     '<div class="pl-idea-header">' +
@@ -287,6 +307,7 @@ if (!defined('ABSPATH')) {
                         '<a href="' + detailUrl + '" class="pl-view-details-btn">' +
                             '<?php echo esc_js(__('View Full Report →', 'product-launch')); ?>' +
                         '</a>' +
+                        adminActions +
                     '</div>' +
                 '</div>'
             );

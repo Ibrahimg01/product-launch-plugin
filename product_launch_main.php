@@ -199,6 +199,9 @@ require_once PL_PLUGIN_DIR . 'includes/idea-validation/validation-ajax.php';
 require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-frontend.php';
 // Load ideas library
 require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-ideas-library.php';
+require_once PL_PLUGIN_DIR . 'includes/phase-mapper.php';
+require_once PL_PLUGIN_DIR . 'includes/admin/openai-getter.php';
+require_once PL_PLUGIN_DIR . 'includes/admin/ajax-ideas.php';
 
 /**
  * Enhanced activation with proper database schema

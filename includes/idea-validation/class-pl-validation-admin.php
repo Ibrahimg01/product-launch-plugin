@@ -49,6 +49,15 @@ class PL_Validation_Admin {
 
         add_submenu_page(
             $parent_slug,
+            __('AI Validation', 'product-launch'),
+            __('AI Validation', 'product-launch'),
+            'manage_options',
+            'product-launch-ai-validation',
+            array($this, 'render_ai_validation_page')
+        );
+
+        add_submenu_page(
+            $parent_slug,
             __('My Validations', 'product-launch'),
             __('My Validations', 'product-launch'),
             'manage_options',
@@ -122,6 +131,15 @@ class PL_Validation_Admin {
 
         add_submenu_page(
             $parent_slug,
+            __('AI Validation', 'product-launch'),
+            __('AI Validation', 'product-launch'),
+            'manage_network_options',
+            'product-launch-network-ai-validation',
+            array($this, 'render_ai_validation_page')
+        );
+
+        add_submenu_page(
+            $parent_slug,
             __('My Validations', 'product-launch'),
             __('My Validations', 'product-launch'),
             'manage_network_options',
@@ -158,7 +176,9 @@ class PL_Validation_Admin {
             && false === strpos($hook, 'pl-validation')
             && false === strpos($hook, 'product-launch-network-validation')
             && false === strpos($hook, 'product-launch-ideas-library')
-            && false === strpos($hook, 'product-launch-network-ideas-library')) {
+            && false === strpos($hook, 'product-launch-network-ideas-library')
+            && false === strpos($hook, 'product-launch-ai-validation')
+            && false === strpos($hook, 'product-launch-network-ai-validation')) {
             return;
         }
 
@@ -263,6 +283,66 @@ class PL_Validation_Admin {
                 )
             ));
         }
+
+        $is_library_screen = (false !== strpos($hook, 'product-launch_page_product-launch-ideas-library')
+            || false !== strpos($hook, 'product-launch-network-settings_page_product-launch-network-ideas-library'));
+
+        $is_ai_validation_screen = (false !== strpos($hook, 'product-launch_page_product-launch-ai-validation')
+            || false !== strpos($hook, 'product-launch-network-settings_page_product-launch-network-ai-validation'));
+
+        if ($is_library_screen || $is_ai_validation_screen) {
+            wp_enqueue_style(
+                'is-ideas-admin',
+                PL_PLUGIN_URL . 'assets/admin/css/is-ideas-admin.css',
+                array(),
+                pl_get_asset_version('assets/admin/css/is-ideas-admin.css')
+            );
+
+            wp_enqueue_script(
+                'is-ideas-admin',
+                PL_PLUGIN_URL . 'assets/admin/js/is-ideas-admin.js',
+                array('jquery'),
+                pl_get_asset_version('assets/admin/js/is-ideas-admin.js'),
+                true
+            );
+
+            wp_localize_script('is-ideas-admin', 'IS_ADMIN', array(
+                'ajax' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('is_admin_push_nonce'),
+                'destRegistry' => is_phase_dest_registry(),
+                'screen' => $is_library_screen ? 'library' : 'ai_validation',
+                'strings' => array(
+                    'phasePrefillHeading'   => __('Phase Prefill', 'product-launch'),
+                    'competitorsEmpty'      => __('No competitors listed.', 'product-launch'),
+                    'marketHeading'         => __('Market', 'product-launch'),
+                    'audienceLabel'         => __('Audience:', 'product-launch'),
+                    'problemLabel'          => __('Problem:', 'product-launch'),
+                    'outcomesLabel'         => __('Outcomes:', 'product-launch'),
+                    'competitorsHeading'    => __('Competitors', 'product-launch'),
+                    'mapperCheckSuccess'    => __('All mapping keys look good!', 'product-launch'),
+                    'statusNotSet'          => __('Option not yet created (will be set on first push)', 'product-launch'),
+                    'statusInvalidKey'      => __('Invalid destination key', 'product-launch'),
+                    'statusMissingPair'     => __('Mapping pair is incomplete', 'product-launch'),
+                    'phaseColumn'           => __('Phase', 'product-launch'),
+                    'destKeyColumn'         => __('Destination Key', 'product-launch'),
+                    'statusColumn'          => __('Status', 'product-launch'),
+                    'missingIdeaId'         => __('Idea identifier is missing.', 'product-launch'),
+                    'loadingText'           => __('Loading…', 'product-launch'),
+                    'loadReportError'       => __('Failed to load report.', 'product-launch'),
+                    'selectAtLeastOne'      => __('Select at least one destination field.', 'product-launch'),
+                    'applyMappingError'     => __('Failed to apply mapping.', 'product-launch'),
+                    'applyMappingSuccess'   => __('Report data applied to launch phases.', 'product-launch'),
+                    'validatingText'        => __('Validating…', 'product-launch'),
+                    'validateError'         => __('Validation failed.', 'product-launch'),
+                    'pushButton'            => __('Push to 8 Phases', 'product-launch'),
+                    'validateSuccess'       => __('Idea validated successfully.', 'product-launch'),
+                    'validateErrorPrefix'   => __('Validation failed: ', 'product-launch'),
+                    'checkingText'          => __('Checking…', 'product-launch'),
+                    'mapperCheckError'      => __('Mapper check failed.', 'product-launch'),
+                    'mapperCheckSuccessNotice' => __('Mapper check complete.', 'product-launch'),
+                ),
+            ));
+        }
     }
 
     /**
@@ -325,6 +405,19 @@ class PL_Validation_Admin {
         $discovery_url = is_network_admin() ? $this->get_admin_page_url('product-launch-network-validation') : '';
 
         include PL_PLUGIN_DIR . 'templates/admin/ideas-library.php';
+    }
+
+    /**
+     * Render AI Validation intake page.
+     */
+    public function render_ai_validation_page() {
+        $capability = is_network_admin() ? 'manage_network_options' : 'manage_options';
+
+        if (!current_user_can($capability)) {
+            wp_die(__('You do not have sufficient permissions to access this page.', 'product-launch'));
+        }
+
+        include PL_PLUGIN_DIR . 'templates/admin/ai-validation.php';
     }
 
     /**
