@@ -102,8 +102,8 @@ if (!defined('ABSPATH')) {
         let currentPage = 1;
         let currentFilters = {
             search: '',
-            category: '',
-            sort: 'score_desc'
+            category: categoryFilterEnabled ? (categorySelect.val() || '') : '',
+            sort: defaultSort
         };
 
         loadIdeas();
@@ -121,17 +121,19 @@ if (!defined('ABSPATH')) {
         });
 
         $('#pl-category-filter, #pl-sort-filter').on('change', function() {
-            currentFilters.category = $('#pl-category-filter').val();
-            currentFilters.sort = $('#pl-sort-filter').val();
+            currentFilters.category = categoryFilterEnabled ? (categorySelect.val() || '') : '';
+            currentFilters.sort = sortSelect.val();
             currentPage = 1;
             loadIdeas();
         });
 
         $(document).on('click', '.pl-clear-filters', function() {
             $('#pl-library-search').val('');
-            $('#pl-category-filter').val('');
-            $('#pl-sort-filter').val('score_desc');
-            currentFilters = { search: '', category: '', sort: 'score_desc' };
+            if (categoryFilterEnabled) {
+                categorySelect.val('');
+            }
+            sortSelect.val(defaultSort);
+            currentFilters = { search: '', category: '', sort: defaultSort };
             currentPage = 1;
             loadIdeas();
         });
@@ -150,7 +152,7 @@ if (!defined('ABSPATH')) {
                     min_score: plLibrary.minScore,
                     enriched_only: plLibrary.enrichedOnly,
                     search: currentFilters.search,
-                    category: currentFilters.category,
+                    category: categoryFilterEnabled ? currentFilters.category : '',
                     sort: currentFilters.sort
                 }
             }).done(function(response) {
@@ -363,7 +365,7 @@ if (!defined('ABSPATH')) {
         }
 
         function updateActiveFilters() {
-            const hasFilters = (currentFilters.search && currentFilters.search.length) || currentFilters.category;
+            const hasFilters = (currentFilters.search && currentFilters.search.length) || (categoryFilterEnabled && currentFilters.category);
 
             if (!hasFilters) {
                 $('#pl-active-filters').hide();

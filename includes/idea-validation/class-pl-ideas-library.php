@@ -83,7 +83,26 @@ class PL_Ideas_Library {
         $this->category_map = pl_get_library_category_map();
         $this->category_labels = wp_list_pluck($categories, 'label', 'slug');
 
+        if (!$this->categories_enabled()) {
+            $categories = array();
+            $this->category_map = array();
+            $this->category_labels = array();
+        }
+
         return $categories;
+    }
+
+    /**
+     * Determine if categories should be available on the current site.
+     *
+     * @return bool
+     */
+    private function categories_enabled() {
+        if (!is_multisite()) {
+            return true;
+        }
+
+        return is_main_site();
     }
 
     /**
@@ -212,6 +231,9 @@ class PL_Ideas_Library {
         $enriched_only = isset($_POST['enriched_only']) && 'yes' === $_POST['enriched_only'];
         $search = isset($_POST['search']) ? sanitize_text_field(wp_unslash($_POST['search'])) : '';
         $category = isset($_POST['category']) ? sanitize_text_field(wp_unslash($_POST['category'])) : '';
+        if (!$this->categories_enabled()) {
+            $category = '';
+        }
         $sort = isset($_POST['sort']) ? sanitize_text_field(wp_unslash($_POST['sort'])) : 'score_desc';
 
         $params = array(
