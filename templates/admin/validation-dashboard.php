@@ -7,8 +7,15 @@ if (!defined('ABSPATH')) {
 }
 ?>
 
-<div class="wrap pl-validation-dashboard">
-    <h1><?php _e('Idea Validation Dashboard', 'product-launch'); ?></h1>
+<?php
+$wrapper_class = isset($embedded) && $embedded
+    ? 'pl-validation-dashboard pl-validation-dashboard--embedded'
+    : 'wrap pl-validation-dashboard';
+$heading_tag = (isset($embedded) && $embedded) ? 'h2' : 'h1';
+?>
+
+<div class="<?php echo esc_attr($wrapper_class); ?>">
+    <<?php echo esc_html($heading_tag); ?>><?php _e('Idea Validation Dashboard', 'product-launch'); ?></<?php echo esc_html($heading_tag); ?>>
 
     <div class="pl-stats-grid">
         <div class="pl-stat-card">
@@ -96,7 +103,7 @@ if (!defined('ABSPATH')) {
                             </td>
                             <td><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($validation->created_at))); ?></td>
                             <td>
-                                <a href="<?php echo esc_url(admin_url('admin.php?page=pl-validation-list&id=' . absint($validation->id))); ?>" class="button button-small">
+                                <a href="<?php echo esc_url(admin_url('admin.php?page=product-launch-validation&validation_id=' . absint($validation->id))); ?>" class="button button-small">
                                     <?php _e('View', 'product-launch'); ?>
                                 </a>
                             </td>
@@ -106,7 +113,7 @@ if (!defined('ABSPATH')) {
             </table>
 
             <p class="pl-view-all">
-                <a href="<?php echo esc_url(admin_url('admin.php?page=pl-validation-list')); ?>" class="button">
+                <a href="<?php echo esc_url(admin_url('admin.php?page=product-launch-validation-list')); ?>" class="button">
                     <?php _e('View All Validations', 'product-launch'); ?>
                 </a>
             </p>

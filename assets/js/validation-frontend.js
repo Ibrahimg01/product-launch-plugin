@@ -1,4 +1,5 @@
 jQuery(document).ready(function($) {
+    const validationConfig = typeof plValidationFrontend !== 'undefined' ? plValidationFrontend : null;
     // Character counter
     $('#pl-business-idea').on('input', function() {
         const count = $(this).val().length;
@@ -15,6 +16,11 @@ jQuery(document).ready(function($) {
     $('#pl-validation-form').on('submit', function(e) {
         e.preventDefault();
 
+        if (!validationConfig) {
+            console.warn('Product Launch validation configuration missing.');
+            return;
+        }
+
         const form = $(this);
         const button = form.find('.pl-submit-button');
         const buttonText = button.find('.pl-button-text');
@@ -24,7 +30,7 @@ jQuery(document).ready(function($) {
 
         // Validate
         if (businessIdea.length < 20) {
-            showMessage('error', plValidationFrontend.strings.ideaRequired);
+            showMessage('error', validationConfig.strings.ideaRequired || 'Please enter your business idea.');
             return;
         }
 
@@ -39,12 +45,14 @@ jQuery(document).ready(function($) {
 
         // Submit validation
         $.ajax({
-            url: plValidationFrontend.ajaxurl,
+            url: validationConfig.ajaxurl,
             type: 'POST',
             data: {
                 action: 'pl_submit_validation',
-                nonce: plValidationFrontend.nonce,
-                business_idea: businessIdea
+                nonce: validationConfig.nonce,
+                business_idea: businessIdea,
+                context: validationConfig.context || 'frontend',
+                redirect_base: validationConfig.redirectBase || ''
             },
             success: function(response) {
                 if (response.success) {
@@ -55,6 +63,8 @@ jQuery(document).ready(function($) {
                     setTimeout(function() {
                         if (response.data.redirect_url) {
                             window.location.href = response.data.redirect_url;
+                        } else if (validationConfig.redirectBase) {
+                            window.location.href = addQueryArg(validationConfig.redirectBase, 'validation_id', response.data.validation_id);
                         } else {
                             hideProcessingModal();
                             showMessage('success', response.data.message);
@@ -69,7 +79,7 @@ jQuery(document).ready(function($) {
             },
             error: function() {
                 hideProcessingModal();
-                showMessage('error', plValidationFrontend.strings.error);
+                showMessage('error', validationConfig.strings.error || 'An error occurred. Please try again.');
             },
             complete: function() {
                 button.prop('disabled', false);
@@ -86,6 +96,17 @@ jQuery(document).ready(function($) {
                 .fadeIn();
         }
     });
+
+    function addQueryArg(base, key, value) {
+        try {
+            const url = new URL(base, window.location.origin);
+            url.searchParams.set(key, value);
+            return url.toString();
+        } catch (e) {
+            const separator = base.indexOf('?') > -1 ? '&' : '?';
+            return base + separator + encodeURIComponent(key) + '=' + encodeURIComponent(value);
+        }
+    }
 
     // Processing modal functions
     function showProcessingModal() {

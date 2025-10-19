@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
 
     <div class="pl-list-filters">
         <form method="get">
-            <input type="hidden" name="page" value="pl-validation-list">
+            <input type="hidden" name="page" value="<?php echo esc_attr($list_base_slug); ?>">
 
             <select name="status">
                 <option value=""><?php _e('All Statuses', 'product-launch'); ?></option>
@@ -30,7 +30,7 @@ if (!defined('ABSPATH')) {
             <button type="submit" class="button"><?php _e('Filter', 'product-launch'); ?></button>
 
             <?php if ($status_filter || $search) : ?>
-                <a href="<?php echo esc_url(admin_url('admin.php?page=pl-validation-list')); ?>" class="button">
+                <a href="<?php echo esc_url(admin_url('admin.php?page=' . $list_base_slug)); ?>" class="button">
                     <?php _e('Clear Filters', 'product-launch'); ?>
                 </a>
             <?php endif; ?>

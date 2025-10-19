@@ -8,6 +8,9 @@ if (!defined('ABSPATH')) {
 
 $quota = new PL_Validation_Quota();
 $quota_info = $quota->get_quota_info($user_id);
+
+$validation_form_url = isset($validation_form_url) ? $validation_form_url : '';
+$validation_report_base = isset($validation_report_base) ? $validation_report_base : '';
 ?>
 
 <div class="pl-my-validations-wrapper">
@@ -28,9 +31,11 @@ $quota_info = $quota->get_quota_info($user_id);
                 </span>
             <?php endif; ?>
             
-            <a href="<?php echo esc_url(get_permalink(get_page_by_path('validate-idea'))); ?>" class="button button-primary">
-                <?php _e('New Validation', 'product-launch'); ?>
-            </a>
+            <?php if (!empty($validation_form_url)) : ?>
+                <a href="<?php echo esc_url($validation_form_url); ?>" class="button button-primary">
+                    <?php _e('New Validation', 'product-launch'); ?>
+                </a>
+            <?php endif; ?>
         </div>
     </div>
     
@@ -39,9 +44,11 @@ $quota_info = $quota->get_quota_info($user_id);
             <div class="pl-empty-icon">💡</div>
             <h3><?php _e('No validations yet', 'product-launch'); ?></h3>
             <p><?php _e('Start by validating your first business idea!', 'product-launch'); ?></p>
-            <a href="<?php echo esc_url(get_permalink(get_page_by_path('validate-idea'))); ?>" class="button button-primary">
-                <?php _e('Validate an Idea', 'product-launch'); ?>
-            </a>
+            <?php if (!empty($validation_form_url)) : ?>
+                <a href="<?php echo esc_url($validation_form_url); ?>" class="button button-primary">
+                    <?php _e('Validate an Idea', 'product-launch'); ?>
+                </a>
+            <?php endif; ?>
         </div>
     <?php else : ?>
         <div class="pl-validations-grid">
@@ -97,10 +104,12 @@ $quota_info = $quota->get_quota_info($user_id);
                     </div>
                     
                     <div class="pl-card-footer">
-                        <a href="<?php echo esc_url(add_query_arg('validation_id', $validation->id, get_permalink())); ?>" 
-                           class="button pl-view-report">
-                            <?php _e('View Full Report', 'product-launch'); ?> →
-                        </a>
+                        <?php if (!empty($validation_report_base)) : ?>
+                            <a href="<?php echo esc_url(add_query_arg('validation_id', $validation->id, $validation_report_base)); ?>"
+                               class="button pl-view-report">
+                                <?php _e('View Full Report', 'product-launch'); ?> →
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endforeach; ?>
