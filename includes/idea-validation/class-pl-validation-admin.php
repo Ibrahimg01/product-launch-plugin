@@ -304,6 +304,7 @@ class PL_Validation_Admin {
         }
 
         $library_management_restricted = (is_multisite() && !$is_network_context);
+        $can_manage_library = current_user_can(is_network_admin() ? 'manage_network_options' : 'manage_options');
         $library_messages = array();
         $categories = pl_get_library_categories();
         $category_labels = wp_list_pluck($categories, 'label', 'slug');
