@@ -265,6 +265,8 @@ function pl_create_validation_tables() {
         confidence_level VARCHAR(50) NULL,
         validation_status VARCHAR(50) DEFAULT 'pending',
         enrichment_status VARCHAR(50) DEFAULT 'pending',
+        library_published TINYINT(1) NOT NULL DEFAULT 0,
+        published_at DATETIME NULL,
         core_data LONGTEXT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -272,7 +274,8 @@ function pl_create_validation_tables() {
         KEY user_site (user_id, site_id),
         KEY external_id (external_api_id),
         KEY status (validation_status),
-        KEY created (created_at)
+        KEY created (created_at),
+        KEY published (library_published)
     ) $charset_collate;";
 
     // Enrichment cache table

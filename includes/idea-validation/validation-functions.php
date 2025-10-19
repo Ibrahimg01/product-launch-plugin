@@ -80,7 +80,7 @@ function pl_get_validation($validation_id, $user_id = null) {
  */
 function pl_format_validation_score($score) {
     $score = (int)$score;
-    
+
     if ($score >= 70) {
         return array(
             'score' => $score,
@@ -102,5 +102,67 @@ function pl_format_validation_score($score) {
             'class' => 'danger',
             'color' => '#EF4444'
         );
+    }
+}
+
+/**
+ * Retrieve the list of cached library payload keys.
+ *
+ * @return array
+ */
+function pl_get_library_cache_keys() {
+    $option_name = 'pl_library_cache_keys';
+    $keys = is_multisite() ? get_site_option($option_name, array()) : get_option($option_name, array());
+
+    if (!is_array($keys)) {
+        $keys = array();
+    }
+
+    return $keys;
+}
+
+/**
+ * Register a cache key so it can be cleared later.
+ *
+ * @param string $key Cache key.
+ */
+function pl_register_library_cache_key($key) {
+    $keys = pl_get_library_cache_keys();
+
+    if (in_array($key, $keys, true)) {
+        return;
+    }
+
+    $keys[] = $key;
+    $option_name = 'pl_library_cache_keys';
+
+    if (is_multisite()) {
+        update_site_option($option_name, $keys);
+    } else {
+        update_option($option_name, $keys);
+    }
+}
+
+/**
+ * Clear all cached library payloads.
+ */
+function pl_clear_library_cache() {
+    $option_name = 'pl_library_cache_keys';
+    $keys = pl_get_library_cache_keys();
+
+    if (!empty($keys)) {
+        foreach ($keys as $key) {
+            if (is_multisite()) {
+                delete_site_transient($key);
+            } else {
+                delete_transient($key);
+            }
+        }
+    }
+
+    if (is_multisite()) {
+        update_site_option($option_name, array());
+    } else {
+        update_option($option_name, array());
     }
 }

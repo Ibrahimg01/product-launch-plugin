@@ -17,8 +17,16 @@ class PL_Ideas_Library {
      */
     private $api;
 
+    /**
+     * Validation access helper.
+     *
+     * @var PL_Validation_Access
+     */
+    private $access;
+
     public function __construct() {
         $this->api = new PL_Validation_API();
+        $this->access = new PL_Validation_Access();
 
         add_shortcode('pl_ideas_library', array($this, 'render_library'));
         add_shortcode('pl_idea_details', array($this, 'render_idea_details'));
@@ -162,13 +170,31 @@ class PL_Ideas_Library {
             $params = array_merge($params, $sort_map[$sort]);
         }
 
-        $ideas = $this->fetch_library_ideas($params);
+        $cache_key = $this->build_cache_key($params, $page, $search, $category, $sort);
+        $cached = $this->get_cached_library_payload($cache_key);
 
-        if (false === $ideas) {
+        if (false !== $cached) {
+            wp_send_json_success($cached);
+        }
+
+        $local_items = $this->get_local_library_items(array(
+            'min_score' => $min_score,
+            'enriched_only' => $enriched_only,
+            'search' => $search,
+            'category' => $category,
+            'sort' => $sort,
+        ));
+
+        $ideas = $this->fetch_library_ideas($params);
+        $payload = $this->merge_library_payload($ideas, $local_items, $page, $per_page);
+
+        if (false === $payload) {
             wp_send_json_error(array('message' => esc_html__('Failed to load ideas from library.', 'product-launch')));
         }
 
-        wp_send_json_success($ideas);
+        $this->set_cached_library_payload($cache_key, $payload);
+
+        wp_send_json_success($payload);
     }
 
     /**
@@ -187,7 +213,15 @@ class PL_Ideas_Library {
             wp_send_json_error(array('message' => esc_html__('Invalid idea ID.', 'product-launch')));
         }
 
-        $idea = $this->api->get_validation($idea_id, 'core');
+        if ($this->is_local_idea($idea_id)) {
+            $idea = $this->get_local_idea_details($idea_id);
+        } else {
+            $idea = $this->api->get_validation($idea_id, 'core');
+            if ($idea) {
+                $idea['source_type'] = 'library';
+                $idea['id'] = $idea_id;
+            }
+        }
 
         if (!$idea) {
             wp_send_json_error(array('message' => esc_html__('Idea not found.', 'product-launch')));
@@ -317,6 +351,339 @@ class PL_Ideas_Library {
         $data = json_decode(wp_remote_retrieve_body($response), true);
 
         return $data;
+    }
+
+    /**
+     * Build a cache key for the supplied query params.
+     */
+    private function build_cache_key($params, $page, $search, $category, $sort) {
+        $key_data = array_merge(
+            $params,
+            array(
+                'page' => (int) $page,
+                'search' => (string) $search,
+                'category' => (string) $category,
+                'sort' => (string) $sort,
+            )
+        );
+
+        return 'pl_library_cache_' . md5(wp_json_encode($key_data));
+    }
+
+    /**
+     * Retrieve cached library payload if available.
+     */
+    private function get_cached_library_payload($cache_key) {
+        if (empty($cache_key)) {
+            return false;
+        }
+
+        return is_multisite() ? get_site_transient($cache_key) : get_transient($cache_key);
+    }
+
+    /**
+     * Store the combined library payload in cache.
+     */
+    private function set_cached_library_payload($cache_key, $payload) {
+        if (empty($cache_key) || !is_array($payload)) {
+            return;
+        }
+
+        $duration = $this->get_cache_duration();
+
+        if (is_multisite()) {
+            set_site_transient($cache_key, $payload, $duration);
+        } else {
+            set_transient($cache_key, $payload, $duration);
+        }
+
+        if (function_exists('pl_register_library_cache_key')) {
+            pl_register_library_cache_key($cache_key);
+        }
+    }
+
+    /**
+     * Determine the cache lifetime in seconds.
+     */
+    private function get_cache_duration() {
+        $hours = (int) pl_get_validation_option('pl_validation_cache_duration', 24);
+
+        return max(1, $hours) * HOUR_IN_SECONDS;
+    }
+
+    /**
+     * Fetch validations published by the network and format for the library feed.
+     */
+    private function get_local_library_items($args = array()) {
+        $defaults = array(
+            'min_score' => 0,
+            'enriched_only' => false,
+            'search' => '',
+            'category' => '',
+            'sort' => 'score_desc',
+        );
+
+        $args = wp_parse_args($args, $defaults);
+
+        $validations = $this->access->get_published_validations(array(
+            'min_score' => $args['min_score'],
+            'enriched_only' => $args['enriched_only'],
+            'search' => $args['search'],
+            'order_by' => 'published_at',
+            'order' => 'DESC',
+        ));
+
+        if (empty($validations)) {
+            return array();
+        }
+
+        $items = array();
+
+        foreach ($validations as $validation) {
+            $formatted = $this->format_validation_for_library($validation);
+
+            if (!$formatted) {
+                continue;
+            }
+
+            if (!empty($args['category']) && !$this->idea_matches_category($formatted, $args['category'])) {
+                continue;
+            }
+
+            $items[] = $formatted;
+        }
+
+        if (empty($items)) {
+            return array();
+        }
+
+        return $this->sort_local_items($items, $args['sort']);
+    }
+
+    /**
+     * Convert a validation record into the structure expected by the ideas library.
+     */
+    private function format_validation_for_library($validation) {
+        if (empty($validation->core_data)) {
+            return null;
+        }
+
+        $core = json_decode($validation->core_data, true);
+
+        if (!is_array($core)) {
+            return null;
+        }
+
+        $idea = $core;
+        $idea['id'] = 'local-' . (int) $validation->id;
+        $idea['source_type'] = 'validation';
+        $idea['local_validation_id'] = (int) $validation->id;
+        $idea['business_idea'] = $validation->business_idea;
+        $idea['validation_score'] = (int) $validation->validation_score;
+        $idea['adjusted_score'] = isset($core['adjusted_score']) ? (int) $core['adjusted_score'] : (int) $validation->validation_score;
+        $idea['enriched'] = ('completed' === $validation->enrichment_status);
+        $idea['validation_date'] = isset($core['validation_date']) ? $core['validation_date'] : $validation->created_at;
+        $idea['published_at'] = $validation->published_at;
+        $idea['origin_label'] = __('Network Published', 'product-launch');
+        $idea['category_slugs'] = $this->extract_category_slugs($core);
+        if (empty($idea['external_api_id'])) {
+            $idea['external_api_id'] = 'local-' . (int) $validation->id;
+        }
+
+        return $idea;
+    }
+
+    /**
+     * Extract normalized category slugs from core data.
+     */
+    private function extract_category_slugs($core) {
+        $slugs = array();
+
+        if (isset($core['classification']) && is_array($core['classification'])) {
+            $classification = $core['classification'];
+
+            if (!empty($classification['primary_category_slug'])) {
+                $slugs[] = sanitize_title($classification['primary_category_slug']);
+            }
+
+            if (!empty($classification['primary_category'])) {
+                $slugs[] = sanitize_title($classification['primary_category']);
+            }
+
+            if (!empty($classification['industries']) && is_array($classification['industries'])) {
+                foreach ($classification['industries'] as $industry) {
+                    if (is_string($industry)) {
+                        $slugs[] = sanitize_title($industry);
+                    } elseif (is_array($industry) && isset($industry['slug'])) {
+                        $slugs[] = sanitize_title($industry['slug']);
+                    }
+                }
+            }
+        }
+
+        $slugs = array_filter(array_unique($slugs));
+
+        return array_values($slugs);
+    }
+
+    /**
+     * Determine if the idea matches a requested category filter.
+     */
+    private function idea_matches_category($idea, $category) {
+        $category = sanitize_title($category);
+
+        if ('' === $category) {
+            return true;
+        }
+
+        if (empty($idea['category_slugs'])) {
+            return false;
+        }
+
+        return in_array($category, $idea['category_slugs'], true);
+    }
+
+    /**
+     * Sort local items in a way that matches remote sort expectations.
+     */
+    private function sort_local_items($items, $sort) {
+        $sort = in_array($sort, array('score_desc', 'score_asc', 'date_desc', 'date_asc'), true) ? $sort : 'score_desc';
+
+        usort($items, function ($a, $b) use ($sort) {
+            $score_a = $this->get_idea_score($a);
+            $score_b = $this->get_idea_score($b);
+            $date_a = isset($a['published_at']) ? strtotime($a['published_at']) : strtotime($a['validation_date'] ?? '');
+            $date_b = isset($b['published_at']) ? strtotime($b['published_at']) : strtotime($b['validation_date'] ?? '');
+
+            switch ($sort) {
+                case 'score_asc':
+                    return $score_a <=> $score_b;
+                case 'date_desc':
+                    return $date_b <=> $date_a;
+                case 'date_asc':
+                    return $date_a <=> $date_b;
+                case 'score_desc':
+                default:
+                    return $score_b <=> $score_a;
+            }
+        });
+
+        return $items;
+    }
+
+    /**
+     * Retrieve the numeric score for an idea.
+     */
+    private function get_idea_score($idea) {
+        if (isset($idea['adjusted_score'])) {
+            return (int) $idea['adjusted_score'];
+        }
+
+        if (isset($idea['validation_score'])) {
+            return (int) $idea['validation_score'];
+        }
+
+        return 0;
+    }
+
+    /**
+     * Merge local and remote library payloads.
+     */
+    private function merge_library_payload($remote, $local_items, $page, $per_page) {
+        $local_total = is_array($local_items) ? count($local_items) : 0;
+
+        if (false === $remote && 0 === $local_total) {
+            return false;
+        }
+
+        if (false === $remote) {
+            $total_pages = max(1, (int) ceil(max(1, $local_total) / max(1, $per_page)));
+
+            return array(
+                'items' => ($page <= 1) ? $local_items : array(),
+                'total' => $local_total,
+                'total_pages' => $total_pages,
+                'page' => $page,
+                'local_total' => $local_total,
+            );
+        }
+
+        $remote_items = isset($remote['items']) && is_array($remote['items']) ? $remote['items'] : array();
+        if (!empty($remote_items)) {
+            $remote_items = array_map(function ($idea) {
+                if (is_array($idea) && !isset($idea['source_type'])) {
+                    $idea['source_type'] = 'library';
+                }
+
+                return $idea;
+            }, $remote_items);
+        }
+        $remote_total = isset($remote['total']) ? (int) $remote['total'] : count($remote_items);
+        $remote_pages = isset($remote['total_pages']) ? (int) $remote['total_pages'] : 1;
+
+        $payload = $remote;
+        $payload['items'] = ($page <= 1)
+            ? array_merge($local_items, $remote_items)
+            : $remote_items;
+        $payload['page'] = $page;
+        $payload['local_total'] = $local_total;
+        $payload['total'] = $remote_total + $local_total;
+        $payload['total_pages'] = max($remote_pages, (int) ceil(max(1, $payload['total']) / max(1, $per_page)));
+
+        return $payload;
+    }
+
+    /**
+     * Determine if the requested idea ID references a local validation.
+     */
+    private function is_local_idea($idea_id) {
+        return is_string($idea_id) && 0 === strpos($idea_id, 'local-');
+    }
+
+    /**
+     * Convert a string idea ID into the numeric validation ID.
+     */
+    private function get_local_validation_id($idea_id) {
+        if (is_string($idea_id) && 0 === strpos($idea_id, 'local-')) {
+            return (int) substr($idea_id, 6);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Retrieve the formatted idea details for a published local validation.
+     */
+    private function get_local_idea_details($idea_id) {
+        $validation_id = $this->get_local_validation_id($idea_id);
+
+        if (!$validation_id) {
+            return null;
+        }
+
+        $record = $this->get_published_validation_record($validation_id);
+
+        if (!$record) {
+            return null;
+        }
+
+        return $this->format_validation_for_library($record);
+    }
+
+    /**
+     * Fetch a published validation directly from the database.
+     */
+    private function get_published_validation_record($validation_id) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'pl_validations';
+
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM $table WHERE id = %d AND library_published = 1",
+                $validation_id
+            )
+        );
     }
 
     /**
@@ -937,6 +1304,10 @@ class PL_Ideas_Library {
             'sort_by' => 'score',
             'order' => 'desc',
         ));
+
+        if (function_exists('pl_clear_library_cache')) {
+            pl_clear_library_cache();
+        }
 
         if ($ideas) {
             set_transient('pl_cached_top_ideas', $ideas, DAY_IN_SECONDS);
