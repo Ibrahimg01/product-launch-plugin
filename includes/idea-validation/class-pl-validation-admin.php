@@ -49,8 +49,8 @@ class PL_Validation_Admin {
 
         add_submenu_page(
             $parent_slug,
-            __('All Validations', 'product-launch'),
-            __('All Validations', 'product-launch'),
+            __('My Validations', 'product-launch'),
+            __('My Validations', 'product-launch'),
             'manage_options',
             'product-launch-validation-list',
             array($this, 'render_list_page')
@@ -79,8 +79,8 @@ class PL_Validation_Admin {
         // Backwards compatibility for legacy direct links
         add_submenu_page(
             null,
-            __('All Validations', 'product-launch'),
-            __('All Validations', 'product-launch'),
+            __('My Validations', 'product-launch'),
+            __('My Validations', 'product-launch'),
             'manage_options',
             'pl-validation-list',
             array($this, 'render_list_page')
@@ -122,8 +122,8 @@ class PL_Validation_Admin {
 
         add_submenu_page(
             $parent_slug,
-            __('All Validations', 'product-launch'),
-            __('All Validations', 'product-launch'),
+            __('My Validations', 'product-launch'),
+            __('My Validations', 'product-launch'),
             'manage_network_options',
             'product-launch-network-validation-list',
             array($this, 'render_list_page')
