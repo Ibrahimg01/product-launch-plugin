@@ -8,15 +8,19 @@ if (!defined('ABSPATH')) {
 
 $core_data = json_decode($validation->core_data, true);
 $score_data = pl_format_validation_score($validation->validation_score);
+
+$back_link_url = isset($back_link_url) ? $back_link_url : '';
 ?>
 
 <div class="pl-validation-report-wrapper">
     
     <!-- Header -->
     <div class="pl-report-header">
-        <a href="<?php echo esc_url(get_permalink(get_page_by_path('my-validations'))); ?>" class="pl-back-link">
-            ← <?php _e('Back to My Validations', 'product-launch'); ?>
-        </a>
+        <?php if (!empty($back_link_url)) : ?>
+            <a href="<?php echo esc_url($back_link_url); ?>" class="pl-back-link">
+                ← <?php _e('Back to My Validations', 'product-launch'); ?>
+            </a>
+        <?php endif; ?>
         
         <h1 class="pl-report-title"><?php _e('Validation Report', 'product-launch'); ?></h1>
         

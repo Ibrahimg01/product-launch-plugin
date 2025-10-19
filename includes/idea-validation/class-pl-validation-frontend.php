@@ -39,11 +39,15 @@ class PL_Validation_Frontend {
                 true
             );
 
+            $redirect_base = is_singular() ? get_permalink() : home_url('/');
+
             wp_localize_script('pl-validation-frontend', 'plValidationFrontend', array(
                 'ajaxurl' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('pl_validation_frontend'),
                 'isLoggedIn' => is_user_logged_in(),
                 'loginUrl' => wp_login_url(get_permalink()),
+                'context' => 'frontend',
+                'redirectBase' => $redirect_base,
                 'strings' => array(
                     'loginRequired' => __('Please log in to validate your business idea.', 'product-launch'),
                     'ideaRequired' => __('Please enter your business idea.', 'product-launch'),
@@ -103,7 +107,19 @@ class PL_Validation_Frontend {
             'offset' => $offset
         ));
 
+        $current_url = get_permalink();
+        if (!$current_url) {
+            $current_url = home_url('/');
+        }
+
+        $validation_form_page = get_page_by_path('validate-idea');
+        $validation_form_url = $validation_form_page ? get_permalink($validation_form_page) : $current_url;
+
+        $validation_report_base = $current_url;
+
         ob_start();
+        $validation_form_url = apply_filters('pl_validation_form_url', $validation_form_url, 'frontend');
+        $validation_report_base = apply_filters('pl_validation_report_base', $validation_report_base, 'frontend');
         include PL_PLUGIN_DIR . 'templates/frontend/my-validations.php';
         return ob_get_clean();
     }
@@ -133,7 +149,14 @@ class PL_Validation_Frontend {
             return '<div class="pl-error">' . __('Validation not found or you do not have permission to view it.', 'product-launch') . '</div>';
         }
 
+        $back_link_page = get_page_by_path('my-validations');
+        $back_link_url = $back_link_page ? get_permalink($back_link_page) : get_permalink();
+        if (!$back_link_url) {
+            $back_link_url = home_url('/');
+        }
+
         ob_start();
+        $back_link_url = apply_filters('pl_validation_report_back_url', $back_link_url, 'frontend');
         include PL_PLUGIN_DIR . 'templates/frontend/validation-report.php';
         return ob_get_clean();
     }
@@ -185,12 +208,25 @@ class PL_Validation_Frontend {
         // Increment quota usage
         $quota->increment_usage($user_id, $site_id);
 
+        $context = isset($_POST['context']) ? sanitize_key(wp_unslash($_POST['context'])) : 'frontend';
+        $redirect_base = isset($_POST['redirect_base']) ? esc_url_raw(wp_unslash($_POST['redirect_base'])) : '';
+
+        if (empty($redirect_base) && 'admin' === $context) {
+            $redirect_base = admin_url('admin.php?page=product-launch-validation');
+        }
+
+        $redirect_url = '';
+        if ($redirect_base) {
+            $candidate = add_query_arg('validation_id', $result['local_id'], $redirect_base);
+            $redirect_url = wp_validate_redirect($candidate, '');
+        }
+
         wp_send_json_success(array(
             'message' => __('Validation completed successfully!', 'product-launch'),
             'validation_id' => $result['local_id'],
             'external_id' => $result['external_id'],
             'score' => isset($result['data']['adjusted_score']) ? $result['data']['adjusted_score'] : 0,
-            'redirect_url' => add_query_arg('validation_id', $result['local_id'], get_permalink())
+            'redirect_url' => $redirect_url
         ));
     }
 
