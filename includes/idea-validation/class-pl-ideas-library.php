@@ -24,9 +24,26 @@ class PL_Ideas_Library {
      */
     private $access;
 
+    /**
+     * Custom category assignments indexed by idea identifier.
+     *
+     * @var array
+     */
+    private $category_map = array();
+
+    /**
+     * Library category labels indexed by slug.
+     *
+     * @var array
+     */
+    private $category_labels = array();
+
     public function __construct() {
         $this->api = new PL_Validation_API();
         $this->access = new PL_Validation_Access();
+        $this->category_map = pl_get_library_category_map();
+        $categories = pl_get_library_categories();
+        $this->category_labels = wp_list_pluck($categories, 'label', 'slug');
 
         add_shortcode('pl_ideas_library', array($this, 'render_library'));
         add_shortcode('pl_idea_details', array($this, 'render_idea_details'));
@@ -37,11 +54,60 @@ class PL_Ideas_Library {
 
         add_action('wp_ajax_pl_push_to_phases', array($this, 'ajax_push_to_phases'));
 
+        add_action('init', array($this, 'maybe_create_pages'));
+
         // Schedule daily sync of library ideas.
         if (!wp_next_scheduled('pl_sync_library_ideas')) {
             wp_schedule_event(time(), 'daily', 'pl_sync_library_ideas');
         }
         add_action('pl_sync_library_ideas', array($this, 'sync_library_ideas'));
+    }
+
+    /**
+     * Ensure the public library and detail pages exist for the current site.
+     */
+    public function maybe_create_pages() {
+        if (defined('WP_INSTALLING') && WP_INSTALLING) {
+            return;
+        }
+
+        $this->ensure_page_exists('ideas-library', __('Ideas Library', 'product-launch'), '[pl_ideas_library]');
+        $this->ensure_page_exists('idea-details', __('Idea Details', 'product-launch'), '[pl_idea_details]');
+    }
+
+    /**
+     * Reload category configuration from the database.
+     */
+    private function refresh_category_context() {
+        $categories = pl_get_library_categories();
+        $this->category_map = pl_get_library_category_map();
+        $this->category_labels = wp_list_pluck($categories, 'label', 'slug');
+
+        return $categories;
+    }
+
+    /**
+     * Create a page if it does not already exist.
+     *
+     * @param string $slug      Desired page slug.
+     * @param string $title     Page title.
+     * @param string $shortcode Page content shortcode.
+     */
+    private function ensure_page_exists($slug, $title, $shortcode) {
+        $existing = get_page_by_path($slug);
+
+        if ($existing instanceof WP_Post) {
+            return;
+        }
+
+        wp_insert_post(array(
+            'post_title'   => $title,
+            'post_name'    => sanitize_title($slug),
+            'post_status'  => 'publish',
+            'post_type'    => 'page',
+            'post_content' => $shortcode,
+            'post_author'  => get_current_user_id(),
+        ));
     }
 
     /**
@@ -71,6 +137,8 @@ class PL_Ideas_Library {
         $details_url_base = $details_page ? get_permalink($details_page) : get_permalink();
         $details_url_base = add_query_arg('idea_id', '__IDEA_ID__', $details_url_base);
 
+        $categories = $this->refresh_category_context();
+
         wp_localize_script('pl-validation-frontend', 'plLibrary', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('pl_library'),
@@ -78,6 +146,7 @@ class PL_Ideas_Library {
             'minScore' => (int) $atts['min_score'],
             'enrichedOnly' => $atts['enriched_only'],
             'detailsUrl' => $details_url_base,
+            'categoryLabels' => $this->category_labels,
         ));
 
         ob_start();
@@ -97,6 +166,8 @@ class PL_Ideas_Library {
                 __('Please log in to your Product Launch backend to view idea details.', 'product-launch')
             );
         }
+
+        $this->refresh_category_context();
 
         $atts = shortcode_atts(array(
             'id' => isset($_GET['idea_id']) ? sanitize_text_field(wp_unslash($_GET['idea_id'])) : '',
@@ -132,6 +203,8 @@ class PL_Ideas_Library {
         if (!is_user_logged_in()) {
             wp_send_json_error(array('message' => esc_html__('Authentication required.', 'product-launch')));
         }
+
+        $this->refresh_category_context();
 
         $page = isset($_POST['page']) ? max(1, (int) $_POST['page']) : 1;
         $per_page = isset($_POST['per_page']) ? max(1, min(50, (int) $_POST['per_page'])) : 12;
@@ -206,6 +279,8 @@ class PL_Ideas_Library {
         if (!is_user_logged_in()) {
             wp_send_json_error(array('message' => esc_html__('Authentication required.', 'product-launch')));
         }
+
+        $this->refresh_category_context();
 
         $idea_id = isset($_POST['idea_id']) ? sanitize_text_field(wp_unslash($_POST['idea_id'])) : '';
 
@@ -457,7 +532,9 @@ class PL_Ideas_Library {
             return array();
         }
 
-        return $this->sort_local_items($items, $args['sort']);
+        $items = $this->sort_local_items($items, $args['sort']);
+
+        return $this->apply_category_overrides($items);
     }
 
     /**
@@ -486,6 +563,13 @@ class PL_Ideas_Library {
         $idea['published_at'] = $validation->published_at;
         $idea['origin_label'] = __('Network Published', 'product-launch');
         $idea['category_slugs'] = $this->extract_category_slugs($core);
+        $override = $this->get_category_override($idea['id']);
+
+        if (!empty($override)) {
+            $idea['category_slugs'] = $override;
+        }
+
+        $idea['category_labels'] = $this->map_slugs_to_labels($idea['category_slugs']);
         if (empty($idea['external_api_id'])) {
             $idea['external_api_id'] = 'local-' . (int) $validation->id;
         }
@@ -541,6 +625,119 @@ class PL_Ideas_Library {
         }
 
         return in_array($category, $idea['category_slugs'], true);
+    }
+
+    /**
+     * Retrieve the configured category override for an idea.
+     *
+     * @param string $identifier Idea identifier.
+     * @return array
+     */
+    private function get_category_override($identifier) {
+        $identifier = sanitize_text_field($identifier);
+
+        if ('' === $identifier || empty($this->category_map)) {
+            return array();
+        }
+
+        if (!isset($this->category_map[$identifier])) {
+            return array();
+        }
+
+        $slugs = array();
+
+        foreach ((array) $this->category_map[$identifier] as $slug) {
+            $slug = sanitize_title($slug);
+
+            if ('' === $slug) {
+                continue;
+            }
+
+            $slugs[] = $slug;
+        }
+
+        return array_values(array_unique($slugs));
+    }
+
+    /**
+     * Map category slugs to their display labels.
+     *
+     * @param array $slugs Category slugs.
+     * @return array
+     */
+    private function map_slugs_to_labels($slugs) {
+        if (empty($slugs) || empty($this->category_labels)) {
+            return array();
+        }
+
+        $labels = array();
+
+        foreach ((array) $slugs as $slug) {
+            $slug = sanitize_title($slug);
+
+            if ('' === $slug || !isset($this->category_labels[$slug])) {
+                continue;
+            }
+
+            $labels[] = $this->category_labels[$slug];
+        }
+
+        return array_values(array_unique($labels));
+    }
+
+    /**
+     * Apply configured category overrides to a collection of ideas.
+     *
+     * @param array $ideas Idea payloads.
+     * @return array
+     */
+    private function apply_category_overrides($ideas) {
+        if (empty($ideas) || empty($this->category_map)) {
+            return $ideas;
+        }
+
+        foreach ($ideas as &$idea) {
+            if (!is_array($idea)) {
+                continue;
+            }
+
+            $identifier = $this->determine_idea_identifier($idea);
+
+            if (!$identifier) {
+                continue;
+            }
+
+            $override = $this->get_category_override($identifier);
+
+            if (!empty($override)) {
+                $idea['category_slugs'] = $override;
+                $idea['category_labels'] = $this->map_slugs_to_labels($override);
+            } elseif (!empty($idea['category_slugs']) && !isset($idea['category_labels'])) {
+                $idea['category_labels'] = $this->map_slugs_to_labels($idea['category_slugs']);
+            }
+        }
+
+        unset($idea);
+
+        return $ideas;
+    }
+
+    /**
+     * Determine the identifier used for category overrides.
+     *
+     * @param array $idea Idea payload.
+     * @return string
+     */
+    private function determine_idea_identifier($idea) {
+        if (isset($idea['id']) && is_string($idea['id']) && $idea['id']) {
+            return $idea['id'];
+        }
+
+        if (isset($idea['external_api_id']) && $idea['external_api_id']) {
+            return (string) $idea['external_api_id'];
+        }
+
+        return '';
     }
 
     /**
@@ -617,6 +814,7 @@ class PL_Ideas_Library {
 
                 return $idea;
             }, $remote_items);
+            $remote_items = $this->apply_category_overrides($remote_items);
         }
         $remote_total = isset($remote['total']) ? (int) $remote['total'] : count($remote_items);
         $remote_pages = isset($remote['total_pages']) ? (int) $remote['total_pages'] : 1;
