@@ -138,7 +138,8 @@ class PL_Ideas_Library {
     public function render_library($atts) {
         if (!is_user_logged_in()) {
             return $this->render_backend_login_message(
-                __('Please log in to your Product Launch backend to browse the ideas library.', 'product-launch')
+                __('Please log in to your Product Launch backend to browse the ideas library.', 'product-launch'),
+                $this->get_current_url()
             );
         }
 
@@ -184,16 +185,19 @@ class PL_Ideas_Library {
      * @return string
      */
     public function render_idea_details($atts) {
+        $requested_id = isset($_GET['idea_id']) ? sanitize_text_field(wp_unslash($_GET['idea_id'])) : '';
+
         if (!is_user_logged_in()) {
             return $this->render_backend_login_message(
-                __('Please log in to your Product Launch backend to view idea details.', 'product-launch')
+                __('Please log in to your Product Launch backend to view idea details.', 'product-launch'),
+                $this->get_current_url()
             );
         }
 
         $this->refresh_category_context();
 
         $atts = shortcode_atts(array(
-            'id' => isset($_GET['idea_id']) ? sanitize_text_field(wp_unslash($_GET['idea_id'])) : '',
+            'id' => $requested_id,
         ), $atts);
 
         if (empty($atts['id'])) {
@@ -341,13 +345,44 @@ class PL_Ideas_Library {
      * @param string $message Notice message.
      * @return string
      */
-    private function render_backend_login_message($message) {
-        $login_url = wp_login_url(admin_url());
+    private function render_backend_login_message($message, $redirect = '') {
+        $redirect_url = '';
+
+        if (!empty($redirect)) {
+            $redirect_url = esc_url_raw($redirect);
+        }
+
+        if (empty($redirect_url)) {
+            $redirect_url = admin_url();
+        }
+
+        $login_url = wp_login_url($redirect_url);
 
         return '<div class="pl-login-required">'
             . '<p>' . esc_html($message) . '</p>'
             . '<a href="' . esc_url($login_url) . '" class="button">' . esc_html__('Log In', 'product-launch') . '</a>'
             . '</div>';
+    }
+
+    /**
+     * Determine the current request URL for redirect handling.
+     *
+     * @return string
+     */
+    private function get_current_url() {
+        $request_uri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '';
+        $request_uri = is_string($request_uri) ? $request_uri : '';
+
+        $host = isset($_SERVER['HTTP_HOST']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST'])) : '';
+
+        if ('' === $host) {
+            return esc_url_raw(home_url($request_uri));
+        }
+
+        $scheme = is_ssl() ? 'https://' : 'http://';
+        $url = $scheme . $host . $request_uri;
+
+        return esc_url_raw($url);
     }
 
     /**

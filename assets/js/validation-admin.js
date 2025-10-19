@@ -160,6 +160,15 @@ jQuery(document).ready(function ($) {
         const resultsContainer = $('#pl-network-search-results');
         const feedback = $('#pl-network-search-feedback');
         const status = $('#pl-network-search-status');
+        const modal = $('#pl-network-idea-modal');
+        const modalDialog = modal.find('.pl-network-idea-modal__dialog');
+        const modalBody = modal.find('.pl-network-idea-modal__body');
+        const modalOverlay = modal.find('.pl-network-idea-modal__overlay');
+        const modalClose = modal.find('.pl-network-idea-modal__close');
+        if (modalDialog.length && !modalDialog.attr('tabindex')) {
+            modalDialog.attr('tabindex', '-1');
+        }
+        let previouslyFocused = null;
 
         form.on('submit', function (event) {
             event.preventDefault();
@@ -267,6 +276,280 @@ jQuery(document).ready(function ($) {
             });
         });
 
+        $(document).on('click', '.pl-network-view-report', function (event) {
+            event.preventDefault();
+
+            const button = $(this);
+            const index = parseInt(button.data('index'), 10);
+            const idea = discoveryResults[index];
+
+            if (!idea) {
+                showFeedback('error', networkStrings.reportError || 'Unable to open the idea report. Please try again.');
+                return;
+            }
+
+            openIdeaModal(idea, button.get(0));
+        });
+
+        modalClose.on('click', function (event) {
+            event.preventDefault();
+            closeIdeaModal();
+        });
+
+        modalOverlay.on('click', function () {
+            closeIdeaModal();
+        });
+
+        $(document).on('keydown', function (event) {
+            if ('Escape' === event.key && modal.hasClass('is-visible')) {
+                event.preventDefault();
+                closeIdeaModal();
+            }
+        });
+
+        function openIdeaModal(idea, triggerElement) {
+            const reportHtml = buildIdeaReport(idea);
+
+            if (!reportHtml) {
+                showFeedback('error', networkStrings.reportError || 'Unable to open the idea report. Please try again.');
+                return;
+            }
+
+            previouslyFocused = triggerElement || document.activeElement;
+
+            modalBody.html(reportHtml);
+            modal.addClass('is-visible').attr('aria-hidden', 'false');
+            $('body').addClass('pl-network-modal-open');
+
+            modalDialog.focus();
+        }
+
+        function closeIdeaModal() {
+            if (!modal.hasClass('is-visible')) {
+                return;
+            }
+
+            modal.removeClass('is-visible').attr('aria-hidden', 'true');
+            $('body').removeClass('pl-network-modal-open');
+            modalBody.empty();
+
+            if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+                previouslyFocused.focus();
+            }
+
+            previouslyFocused = null;
+        }
+
+        function buildIdeaReport(idea) {
+            if (!idea || typeof idea !== 'object') {
+                return '';
+            }
+
+            const title = idea.business_idea ? escapeHtml(idea.business_idea) : escapeHtml(networkStrings.untitledIdea || 'Untitled Idea');
+            const scoreValue = parseInt(typeof idea.adjusted_score !== 'undefined' ? idea.adjusted_score : idea.validation_score, 10);
+            const scoreBadge = createScoreBadge(isFinite(scoreValue) ? scoreValue : 0);
+            const confidence = idea.confidence_level
+                ? '<span class="pl-network-idea-modal__confidence">' + escapeHtml(String(idea.confidence_level)) + '</span>'
+                : '';
+            const generated = idea.generated_at
+                ? '<span class="pl-network-idea-modal__generated">' + escapeHtml(networkStrings.reportGenerated || 'Generated') + ': '
+                    + escapeHtml(formatDateTime(idea.generated_at)) + '</span>'
+                : '';
+            const tags = collectIdeaTags(idea);
+            const tagsHtml = tags.length
+                ? '<div class="pl-network-idea-modal__tags"><strong>' + escapeHtml(networkStrings.reportTags || 'Tags') + ':</strong> '
+                    + tags.map(function (tag) {
+                        return '<span class="pl-network-idea-modal__tag">' + escapeHtml(tag) + '</span>';
+                    }).join('') + '</div>'
+                : '';
+
+            let bodyHtml = '';
+
+            const summaryHtml = idea.summary ? '<p>' + formatMultiline(idea.summary) + '</p>' : '';
+            if (summaryHtml) {
+                bodyHtml += renderSection(networkStrings.reportSummary || 'Summary', summaryHtml);
+            }
+
+            const breakdownHtml = renderScoreBreakdown(idea.scoring_breakdown);
+            if (breakdownHtml) {
+                bodyHtml += renderSection(networkStrings.reportScoreBreakdown || 'Score breakdown', breakdownHtml);
+            }
+
+            const insightsHtml = renderOptionalParagraph(idea.ai_assessment_summary || idea.ai_assessment);
+            if (insightsHtml) {
+                bodyHtml += renderSection(networkStrings.reportInsights || 'Insights', insightsHtml);
+            }
+
+            const marketHtml = renderOptionalParagraph(idea.market_validation_summary || idea.market_validation);
+            if (marketHtml) {
+                bodyHtml += renderSection(networkStrings.reportMarket || 'Market validation', marketHtml);
+            }
+
+            const audienceHtml = renderOptionalParagraph(idea.target_audience);
+            if (audienceHtml) {
+                bodyHtml += renderSection(networkStrings.reportAudience || 'Target audience', audienceHtml);
+            }
+
+            const painHtml = renderOptionalParagraph(idea.customer_pain_points);
+            if (painHtml) {
+                bodyHtml += renderSection(networkStrings.reportPainPoints || 'Customer pain points', painHtml);
+            }
+
+            const opportunityHtml = renderOptionalParagraph(idea.validation_opportunities);
+            if (opportunityHtml) {
+                bodyHtml += renderSection(networkStrings.reportOpportunities || 'Validation opportunities', opportunityHtml);
+            }
+
+            const actionHtml = renderOptionalList(idea.action_plan);
+            if (actionHtml) {
+                bodyHtml += renderSection(networkStrings.reportActionPlan || 'Action plan', actionHtml);
+            }
+
+            if (!bodyHtml) {
+                bodyHtml = '<div class="pl-network-idea-modal__empty">' + escapeHtml(networkStrings.reportEmpty || 'No additional insights were provided for this idea.') + '</div>';
+            }
+
+            return ''
+                + '<div class="pl-network-idea-modal__content" role="document">'
+                    + '<header class="pl-network-idea-modal__header">'
+                        + '<h2 id="pl-network-idea-modal-title">' + title + '</h2>'
+                        + '<div class="pl-network-idea-modal__meta">'
+                            + scoreBadge
+                            + confidence
+                            + generated
+                        + '</div>'
+                        + tagsHtml
+                    + '</header>'
+                    + '<div class="pl-network-idea-modal__body-content">' + bodyHtml + '</div>'
+                + '</div>';
+        }
+
+        function createScoreBadge(score) {
+            const safeScore = isFinite(score) ? score : 0;
+            const badgeClass = safeScore >= 70 ? 'high' : (safeScore >= 50 ? 'medium' : 'low');
+
+            return '<span class="pl-network-idea-modal__score pl-score-' + badgeClass + '">' +
+                '<span class="pl-network-idea-modal__score-value">' + escapeHtml(String(safeScore)) + '</span>' +
+                '<span class="pl-network-idea-modal__score-label">' + escapeHtml(networkStrings.scoreColumn || 'Score') + '</span>' +
+            '</span>';
+        }
+
+        function renderScoreBreakdown(breakdown) {
+            if (!breakdown || typeof breakdown !== 'object') {
+                return '';
+            }
+
+            const entries = Object.keys(breakdown).map(function (key) {
+                const value = breakdown[key];
+
+                if (typeof value === 'undefined' || value === null || value === '') {
+                    return '';
+                }
+
+                const label = formatLabel(key);
+                const displayValue = isFinite(parseFloat(value)) ? parseFloat(value).toString() : String(value);
+
+                return '<div class="pl-network-idea-modal__metric">'
+                    + '<span class="pl-network-idea-modal__metric-label">' + escapeHtml(label) + '</span>'
+                    + '<span class="pl-network-idea-modal__metric-value">' + escapeHtml(displayValue) + '</span>'
+                    + '</div>';
+            }).filter(Boolean);
+
+            if (!entries.length) {
+                return '';
+            }
+
+            return '<div class="pl-network-idea-modal__metrics-grid">' + entries.join('') + '</div>';
+        }
+
+        function renderSection(title, innerHtml) {
+            if (!innerHtml) {
+                return '';
+            }
+
+            return '<section class="pl-network-idea-modal__section">'
+                + '<h3>' + escapeHtml(title) + '</h3>'
+                + innerHtml
+                + '</section>';
+        }
+
+        function renderOptionalParagraph(value) {
+            if (!value) {
+                return '';
+            }
+
+            if (Array.isArray(value)) {
+                return renderOptionalList(value);
+            }
+
+            return '<p>' + formatMultiline(value) + '</p>';
+        }
+
+        function renderOptionalList(value) {
+            if (!value) {
+                return '';
+            }
+
+            const items = Array.isArray(value) ? value : String(value).split(/\r?\n/);
+            const normalized = items.map(function (item) {
+                return typeof item === 'string' ? item.trim() : String(item);
+            }).filter(function (item) {
+                return item.length > 0;
+            });
+
+            if (!normalized.length) {
+                return '';
+            }
+
+            return '<ul class="pl-network-idea-modal__list">' + normalized.map(function (item) {
+                return '<li>' + escapeHtml(item) + '</li>';
+            }).join('') + '</ul>';
+        }
+
+        function collectIdeaTags(idea) {
+            const tags = [];
+
+            if (Array.isArray(idea.tags)) {
+                tags.push.apply(tags, idea.tags);
+            }
+
+            if (Array.isArray(idea.category_labels)) {
+                tags.push.apply(tags, idea.category_labels);
+            }
+
+            const unique = [];
+
+            tags.forEach(function (tag) {
+                const normalized = typeof tag === 'string' ? tag.trim() : '';
+
+                if (normalized && -1 === unique.indexOf(normalized)) {
+                    unique.push(normalized);
+                }
+            });
+
+            return unique;
+        }
+
+        function formatMultiline(value) {
+            return escapeHtml(String(value)).replace(/\r?\n/g, '<br>');
+        }
+
+        function formatLabel(key) {
+            return String(key)
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, function (match) { return match.toUpperCase(); });
+        }
+
+        function formatDateTime(value) {
+            const date = new Date(value);
+
+            if (isNaN(date.getTime())) {
+                return String(value);
+            }
+
+            return date.toLocaleString();
+        }
+
         function renderResults(ideas, meta) {
             if (!Array.isArray(ideas) || !ideas.length) {
                 resultsContainer.html('<p class="description">' + escapeHtml(networkStrings.noResults || 'No pre-validated ideas were found for this search.') + '</p>');
@@ -306,9 +589,14 @@ jQuery(document).ready(function ($) {
                         '</td>' +
                         '<td>' + confidence + '</td>' +
                         '<td>' +
-                            '<button type="button" class="button button-secondary pl-network-publish-idea" data-index="' + index + '">' +
-                                escapeHtml(networkStrings.publishAction || 'Push to Ideas Library') +
-                            '</button>' +
+                            '<div class="pl-network-actions">' +
+                                '<button type="button" class="button button-secondary pl-network-view-report" data-index="' + index + '">' +
+                                    escapeHtml(networkStrings.viewReport || 'View Report') +
+                                '</button>' +
+                                '<button type="button" class="button button-primary pl-network-publish-idea" data-index="' + index + '">' +
+                                    escapeHtml(networkStrings.publishAction || 'Push to Ideas Library') +
+                                '</button>' +
+                            '</div>' +
                         '</td>' +
                     '</tr>'
                 );
