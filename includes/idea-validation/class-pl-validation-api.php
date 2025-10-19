@@ -244,32 +244,30 @@ class PL_Validation_API {
         ));
 
         if (is_wp_error($response)) {
-            return new WP_Error(
-                'pl_validation_search_failed',
-                sprintf(
-                    /* translators: %s: error message */
-                    __('Unable to contact the validation API: %s', 'product-launch'),
-                    $response->get_error_message()
-                )
+            $message = sprintf(
+                /* translators: %s: error message */
+                __('Unable to contact the validation API: %s', 'product-launch'),
+                $response->get_error_message()
             );
+
+            return $this->handle_demo_search_fallback('request_error', $query, $args, $message);
         }
 
         $code = (int) wp_remote_retrieve_response_code($response);
         if (200 !== $code) {
-            return new WP_Error(
-                'pl_validation_search_http_error',
-                sprintf(
-                    /* translators: %d: HTTP status code */
-                    __('The validation API returned an unexpected status code: %d', 'product-launch'),
-                    $code
-                )
+            $message = sprintf(
+                /* translators: %d: HTTP status code */
+                __('The validation API returned an unexpected status code: %d', 'product-launch'),
+                $code
             );
+
+            return $this->handle_demo_search_fallback('http_error', $query, $args, $message);
         }
 
         $data = json_decode(wp_remote_retrieve_body($response), true);
 
         if (!is_array($data)) {
-            return new WP_Error('pl_validation_search_invalid', __('The validation API returned an invalid response.', 'product-launch'));
+            return $this->handle_demo_search_fallback('invalid_response', $query, $args, __('The validation API returned an invalid response.', 'product-launch'));
         }
 
         if (isset($data['ideas']) && is_array($data['ideas'])) {
@@ -298,6 +296,7 @@ class PL_Validation_API {
                 'count' => count($normalized),
                 'query' => $query,
                 'limit' => $args['limit'],
+                'is_demo' => false,
             ),
         );
     }
@@ -480,6 +479,155 @@ class PL_Validation_API {
         ));
 
         return $found ? (int) $found : 0;
+    }
+
+    /**
+     * Provide demo discovery results when the live API is not reachable.
+     */
+    private function handle_demo_search_fallback($reason, $query, $args, $error_message = '') {
+        $allow_demo = apply_filters('pl_validation_allow_demo_search', true, $reason, $query, $args, $error_message);
+
+        if (!$allow_demo) {
+            return new WP_Error(
+                'pl_validation_search_unavailable',
+                $error_message ? $error_message : __('The validation discovery service is currently unavailable. Please try again in a moment.', 'product-launch')
+            );
+        }
+
+        if (!empty($error_message)) {
+            error_log('PL Validation search fallback (' . $reason . '): ' . $error_message);
+        }
+
+        $demo_results = $this->generate_demo_search_results($query, $args);
+
+        if (empty($demo_results)) {
+            return new WP_Error(
+                'pl_validation_demo_unavailable',
+                __('Unable to load demo discovery ideas at this time. Please try again later.', 'product-launch')
+            );
+        }
+
+        return array(
+            'ideas' => $demo_results,
+            'meta' => array(
+                'count' => count($demo_results),
+                'query' => $query,
+                'limit' => isset($args['limit']) ? (int) $args['limit'] : count($demo_results),
+                'is_demo' => true,
+                'demo_message' => __('Showing demo discovery results while the live validation API is unavailable.', 'product-launch'),
+            ),
+        );
+    }
+
+    /**
+     * Build a set of demo discovery ideas that mirror the live API payload.
+     */
+    private function generate_demo_search_results($query, $args) {
+        $limit = isset($args['limit']) ? max(1, min((int) $args['limit'], 12)) : 10;
+        $requested_min_score = isset($args['min_score']) ? (int) $args['min_score'] : 0;
+
+        $focus = $this->format_demo_focus($query);
+        $focus_slug = sanitize_title($focus);
+
+        $templates = array(
+            array(
+                'title' => __('AI Launch Blueprint for %s', 'product-launch'),
+                'summary' => __('A concierge validation sprint combining market research, scoring, and go-to-market insight tailored for %s.', 'product-launch'),
+                'score' => array(82, 94),
+                'confidence' => 'high',
+                'tags' => array('ai-launch', 'playbook', 'validation'),
+            ),
+            array(
+                'title' => __('Community Accelerator for %s Founders', 'product-launch'),
+                'summary' => __('Build a paid accelerator with interview scripts, audience outreach templates, and retention loops built for %s.', 'product-launch'),
+                'score' => array(78, 90),
+                'confidence' => 'medium',
+                'tags' => array('community', 'launch', 'accelerator'),
+            ),
+            array(
+                'title' => __('Validation Content Vault for %s Creators', 'product-launch'),
+                'summary' => __('Package swipe files, nurture flows, and conversion scripts that help %s ship validated offers faster.', 'product-launch'),
+                'score' => array(80, 92),
+                'confidence' => 'high',
+                'tags' => array('content', 'funnels', 'templates'),
+            ),
+            array(
+                'title' => __('Done-for-you Funnel for %s', 'product-launch'),
+                'summary' => __('Deliver a plug-and-play funnel with messaging angles, launch emails, and KPI dashboards aimed at %s.', 'product-launch'),
+                'score' => array(76, 88),
+                'confidence' => 'medium',
+                'tags' => array('funnel', 'automation', 'launch-plan'),
+            ),
+            array(
+                'title' => __('Workflow Automation Stack for %s Teams', 'product-launch'),
+                'summary' => __('Bundle SOPs, automations, and AI prompts that remove busywork for %s execution teams.', 'product-launch'),
+                'score' => array(84, 95),
+                'confidence' => 'high',
+                'tags' => array('automation', 'sops', 'ai-assist'),
+            ),
+        );
+
+        $ideas = array();
+
+        for ($i = 0; $i < $limit; $i++) {
+            $template = $templates[$i % count($templates)];
+            $title = sprintf($template['title'], $focus);
+            $summary = sprintf($template['summary'], $focus);
+
+            $demo = $this->generate_demo_validation($title);
+
+            $min_range = isset($template['score'][0]) ? (int) $template['score'][0] : 70;
+            $max_range = isset($template['score'][1]) ? (int) $template['score'][1] : 90;
+
+            if ($requested_min_score > 0) {
+                $min_range = max($min_range, $requested_min_score);
+            }
+
+            if ($max_range < $min_range) {
+                $max_range = $min_range;
+            }
+
+            $score = wp_rand($min_range, $max_range);
+
+            $demo['summary'] = $summary;
+            $demo['adjusted_score'] = $score;
+            $demo['validation_score'] = $score;
+            $demo['confidence_level'] = $template['confidence'];
+            $demo['origin'] = 'demo_network_search';
+            $demo['source_type'] = 'demo';
+            $demo['generated_at'] = current_time('mysql');
+            $demo['enriched'] = true;
+
+            $demo_tags = isset($demo['tags']) && is_array($demo['tags']) ? $demo['tags'] : array();
+            $demo_tags = array_merge($demo_tags, $template['tags'], array($focus_slug));
+            $demo['tags'] = array_values(array_unique($demo_tags));
+
+            $ideas[] = $this->normalize_search_result($demo);
+        }
+
+        return $ideas;
+    }
+
+    /**
+     * Format the search term into a human-readable focus string for demo ideas.
+     */
+    private function format_demo_focus($query) {
+        $focus = trim(wp_strip_all_tags((string) $query));
+
+        if ('' === $focus) {
+            return __('Modern Founders', 'product-launch');
+        }
+
+        $focus = preg_replace('/\s+/', ' ', $focus);
+        $focus = wp_trim_words($focus, 6, '');
+
+        if (function_exists('mb_convert_case')) {
+            $focus = mb_convert_case($focus, MB_CASE_TITLE, 'UTF-8');
+        } else {
+            $focus = ucwords(strtolower($focus));
+        }
+
+        return $focus;
     }
 
     /**
