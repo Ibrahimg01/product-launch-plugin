@@ -10,6 +10,18 @@ if (!defined('ABSPATH')) {
 <div class="wrap pl-ideas-library-admin">
     <h1><?php esc_html_e('Ideas Library', 'product-launch'); ?></h1>
 
+    <div id="is-admin-notices"></div>
+
+    <?php if (current_user_can('manage_options') || current_user_can('manage_network_options')) : ?>
+        <div class="pl-ideas-library-admin__actions">
+            <button type="button" class="button button-secondary" id="is-mapper-check">
+                <?php esc_html_e('Run Mapper Check', 'product-launch'); ?>
+            </button>
+        </div>
+
+        <div id="is-mapper-results" class="is-mapper-results" hidden></div>
+    <?php endif; ?>
+
     <?php if (!empty($library_messages)) : ?>
         <?php foreach ($library_messages as $message) : ?>
             <div class="notice notice-<?php echo esc_attr($message['type']); ?>">
@@ -59,4 +71,6 @@ if (!defined('ABSPATH')) {
         ?>
         </div>
     </div>
+
+    <?php include PL_PLUGIN_DIR . 'templates/admin/partials/ideas-modals.php'; ?>
 </div>
