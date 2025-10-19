@@ -103,7 +103,7 @@ class PL_Validation_Admin {
         );
 
         add_submenu_page(
-            $parent_slug,
+            null,
             __('Validation Dashboard', 'product-launch'),
             __('Validation Dashboard', 'product-launch'),
             'manage_network_options',
