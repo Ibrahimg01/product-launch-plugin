@@ -676,7 +676,7 @@ class PL_Ideas_Library {
     private function get_published_validation_record($validation_id) {
         global $wpdb;
 
-        $table = $wpdb->prefix . 'pl_validations';
+        $table = pl_get_validation_table_name(is_multisite() ? 'network' : 'site');
 
         return $wpdb->get_row(
             $wpdb->prepare(
