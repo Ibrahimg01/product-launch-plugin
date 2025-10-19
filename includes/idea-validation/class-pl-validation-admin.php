@@ -294,6 +294,16 @@ class PL_Validation_Admin {
             wp_die(__('You do not have sufficient permissions to access this page.', 'product-launch'));
         }
 
+        $is_network_context = is_network_admin();
+        $can_manage_library = $is_network_context
+            ? current_user_can('manage_network_options')
+            : current_user_can('manage_options');
+
+        if (is_multisite() && !$is_network_context) {
+            $can_manage_library = false;
+        }
+
+        $library_management_restricted = (is_multisite() && !$is_network_context);
         $can_manage_library = current_user_can(is_network_admin() ? 'manage_network_options' : 'manage_options');
         $library_messages = array();
         $categories = pl_get_library_categories();

@@ -96,6 +96,12 @@ if (!defined('ABSPATH')) {
                 </form>
             </div>
         </div>
+    <?php elseif (!empty($library_management_restricted)) : ?>
+        <div class="notice notice-info">
+            <p>
+                <?php esc_html_e('Ideas library categories are managed from the Network Admin dashboard. Please contact a super admin to request updates.', 'product-launch'); ?>
+            </p>
+        </div>
     <?php endif; ?>
 
     <?php if (!empty($discovery_url)) : ?>
