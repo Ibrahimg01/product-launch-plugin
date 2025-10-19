@@ -294,66 +294,15 @@ class PL_Validation_Admin {
             wp_die(__('You do not have sufficient permissions to access this page.', 'product-launch'));
         }
 
-        $is_network_context = is_network_admin();
-        $can_manage_library = $is_network_context
-            ? current_user_can('manage_network_options')
-            : current_user_can('manage_options');
-
-        if (is_multisite() && !$is_network_context) {
-            $can_manage_library = false;
-        }
-
-        $library_management_restricted = (is_multisite() && !$is_network_context);
-        $library_messages = array();
-        $categories = pl_get_library_categories();
-        $category_labels = wp_list_pluck($categories, 'label', 'slug');
-        $category_map = pl_get_library_category_map();
-
-        if ($can_manage_library && isset($_POST['pl_library_categories_submit'])) {
-            check_admin_referer('pl_library_categories_manage');
-
-            $raw_input = isset($_POST['pl_library_categories_raw']) ? wp_unslash($_POST['pl_library_categories_raw']) : '';
-            $parsed_categories = $this->parse_library_categories_input($raw_input);
-
-            if (empty($parsed_categories)) {
-                $parsed_categories = pl_get_default_library_categories();
-            }
-
-            pl_update_library_categories($parsed_categories);
-
-            $categories = $parsed_categories;
-            $category_labels = wp_list_pluck($categories, 'label', 'slug');
-
-            $allowed_slugs = array_keys($category_labels);
-            $category_map = $this->filter_category_map($category_map, $allowed_slugs);
-            pl_update_library_category_map($category_map);
-
-            $library_messages[] = array(
-                'type' => 'success',
-                'text' => __('Library categories updated.', 'product-launch'),
-            );
-        }
-
-        if ($can_manage_library && isset($_POST['pl_library_assignments_submit'])) {
-            check_admin_referer('pl_library_assignments');
-
-            $submitted_assignments = isset($_POST['library_assignments']) ? (array) $_POST['library_assignments'] : array();
-            $category_map = $this->parse_library_assignments($submitted_assignments, array_keys($category_labels), $category_map);
-
-            pl_update_library_category_map($category_map);
-
-            $library_messages[] = array(
-                'type' => 'success',
-                'text' => __('Idea category assignments updated.', 'product-launch'),
-            );
-        }
-
-        $categories_text = $this->format_categories_textarea($categories);
-        $assignable_validations = array();
-
-        if ($can_manage_library) {
-            $assignable_validations = $this->get_assignable_validations();
-        }
+        $library_state = $this->prepare_library_management_state();
+        $can_manage_library = $library_state['can_manage_library'];
+        $library_management_restricted = $library_state['library_management_restricted'];
+        $library_messages = $library_state['library_messages'];
+        $categories = $library_state['categories'];
+        $category_labels = $library_state['category_labels'];
+        $category_map = $library_state['category_map'];
+        $categories_text = $library_state['categories_text'];
+        $assignable_validations = $library_state['assignable_validations'];
 
         $library_content = do_shortcode('[pl_ideas_library]');
         $discovery_url = is_network_admin() ? $this->get_admin_page_url('product-launch-network-validation') : '';
@@ -550,6 +499,81 @@ class PL_Validation_Admin {
     }
 
     /**
+     * Prepare shared state for managing library categories and assignments.
+     *
+     * @return array
+     */
+    private function prepare_library_management_state() {
+        $is_network_context = is_network_admin();
+        $can_manage_library = $is_network_context
+            ? current_user_can('manage_network_options')
+            : current_user_can('manage_options');
+
+        if (is_multisite() && !$is_network_context) {
+            $can_manage_library = false;
+        }
+
+        $library_management_restricted = (is_multisite() && !$is_network_context);
+        $library_messages = array();
+        $categories = pl_get_library_categories();
+        $category_labels = wp_list_pluck($categories, 'label', 'slug');
+        $category_map = pl_get_library_category_map();
+
+        if ($can_manage_library && isset($_POST['pl_library_categories_submit'])) {
+            check_admin_referer('pl_library_categories_manage');
+
+            $raw_input = isset($_POST['pl_library_categories_raw']) ? wp_unslash($_POST['pl_library_categories_raw']) : '';
+            $parsed_categories = $this->parse_library_categories_input($raw_input);
+
+            if (empty($parsed_categories)) {
+                $parsed_categories = pl_get_default_library_categories();
+            }
+
+            pl_update_library_categories($parsed_categories);
+
+            $categories = $parsed_categories;
+            $category_labels = wp_list_pluck($categories, 'label', 'slug');
+
+            $allowed_slugs = array_keys($category_labels);
+            $category_map = $this->filter_category_map($category_map, $allowed_slugs);
+            pl_update_library_category_map($category_map);
+
+            $library_messages[] = array(
+                'type' => 'success',
+                'text' => __('Library categories updated.', 'product-launch'),
+            );
+        }
+
+        if ($can_manage_library && isset($_POST['pl_library_assignments_submit'])) {
+            check_admin_referer('pl_library_assignments');
+
+            $submitted_assignments = isset($_POST['library_assignments']) ? (array) $_POST['library_assignments'] : array();
+            $category_map = $this->parse_library_assignments($submitted_assignments, array_keys($category_labels), $category_map);
+
+            pl_update_library_category_map($category_map);
+
+            $library_messages[] = array(
+                'type' => 'success',
+                'text' => __('Idea category assignments updated.', 'product-launch'),
+            );
+        }
+
+        $categories_text = $this->format_categories_textarea($categories);
+        $assignable_validations = $can_manage_library ? $this->get_assignable_validations() : array();
+
+        return array(
+            'can_manage_library' => $can_manage_library,
+            'library_management_restricted' => $library_management_restricted,
+            'library_messages' => $library_messages,
+            'categories' => $categories,
+            'category_labels' => $category_labels,
+            'category_map' => $category_map,
+            'categories_text' => $categories_text,
+            'assignable_validations' => $assignable_validations,
+        );
+    }
+
+    /**
      * Render validations list page
      */
     public function render_list_page() {
@@ -604,6 +628,17 @@ class PL_Validation_Admin {
 
         $list_base_slug = is_network_admin() ? 'product-launch-network-validation-list' : 'product-launch-validation-list';
         $list_base_url = $this->get_admin_page_url($list_base_slug);
+
+        $library_state = $this->prepare_library_management_state();
+        $can_manage_library = $library_state['can_manage_library'];
+        $library_management_restricted = $library_state['library_management_restricted'];
+        $library_messages = $library_state['library_messages'];
+        $categories = $library_state['categories'];
+        $category_labels = $library_state['category_labels'];
+        $category_map = $library_state['category_map'];
+        $categories_text = $library_state['categories_text'];
+        $assignable_validations = $library_state['assignable_validations'];
+
         include PL_PLUGIN_DIR . 'templates/admin/validation-list.php';
     }
 

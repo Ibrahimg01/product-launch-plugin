@@ -7,9 +7,11 @@
 
 /* Ideas Library */
 .pl-ideas-library-wrapper {
-    max-width: 1400px;
+    width: 100%;
+    max-width: none;
     margin: 0 auto;
-    padding: 20px;
+    padding: clamp(16px, 3vw, 40px);
+    box-sizing: border-box;
 }
 
 .pl-library-header {
@@ -159,7 +161,7 @@
 /* Library Grid */
 .pl-library-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 24px;
     margin-bottom: 30px;
 }
@@ -182,8 +184,31 @@
 .pl-idea-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    gap: 12px;
     margin-bottom: 15px;
+}
+
+.pl-idea-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.pl-category-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: #eef6ff;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border: 1px solid rgba(29, 78, 216, 0.2);
 }
 
 .pl-network-badge {
@@ -233,6 +258,9 @@
 }
 
 .pl-enriched-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 4px 10px;
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: #fff;
@@ -317,7 +345,7 @@
 /* Loading Skeleton */
 .pl-loading-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 24px;
 }
 
@@ -440,6 +468,52 @@
 
 .pl-library-stats span {
     margin: 0 8px;
+}
+
+@media (max-width: 1024px) {
+    .pl-library-grid,
+    .pl-loading-grid {
+        gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .pl-idea-card {
+        padding: 18px;
+    }
+
+    .pl-library-title {
+        font-size: 32px;
+    }
+}
+
+@media (max-width: 768px) {
+    .pl-library-header {
+        margin-bottom: 30px;
+    }
+
+    .pl-filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .pl-filter-selects {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .pl-filter-select {
+        flex: 1;
+    }
+
+    .pl-library-grid,
+    .pl-loading-grid {
+        gap: 18px;
+        grid-template-columns: 1fr;
+    }
+
+    .pl-library-description {
+        font-size: 16px;
+    }
 }
 
 /* Idea Details */

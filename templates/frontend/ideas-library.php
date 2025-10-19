@@ -98,6 +98,11 @@ if (!defined('ABSPATH')) {
         const categoryLabels = (plLibrary.categoryLabels && typeof plLibrary.categoryLabels === 'object')
             ? plLibrary.categoryLabels
             : {};
+        const categorySelect = $('#pl-category-filter');
+        const sortSelect = $('#pl-sort-filter');
+        const categoryFilterEnabled = categorySelect.length > 0;
+        const sortFilterEnabled = sortSelect.length > 0;
+        const defaultSort = sortFilterEnabled ? (sortSelect.val() || 'score_desc') : 'score_desc';
 
         let currentPage = 1;
         let currentFilters = {
@@ -120,19 +125,23 @@ if (!defined('ABSPATH')) {
             }
         });
 
-        $('#pl-category-filter, #pl-sort-filter').on('change', function() {
-            currentFilters.category = categoryFilterEnabled ? (categorySelect.val() || '') : '';
-            currentFilters.sort = sortSelect.val();
-            currentPage = 1;
-            loadIdeas();
-        });
+        if (categoryFilterEnabled || sortFilterEnabled) {
+            $('#pl-category-filter, #pl-sort-filter').on('change', function() {
+                currentFilters.category = categoryFilterEnabled ? (categorySelect.val() || '') : '';
+                currentFilters.sort = sortFilterEnabled ? (sortSelect.val() || defaultSort) : defaultSort;
+                currentPage = 1;
+                loadIdeas();
+            });
+        }
 
         $(document).on('click', '.pl-clear-filters', function() {
             $('#pl-library-search').val('');
             if (categoryFilterEnabled) {
                 categorySelect.val('');
             }
-            sortSelect.val(defaultSort);
+            if (sortFilterEnabled) {
+                sortSelect.val(defaultSort);
+            }
             currentFilters = { search: '', category: '', sort: defaultSort };
             currentPage = 1;
             loadIdeas();
@@ -201,6 +210,19 @@ if (!defined('ABSPATH')) {
             const detailUrl = buildDetailsUrl(ideaId);
             const sourceType = idea.source_type || 'library';
 
+            const primaryCategory = getPrimaryCategory(idea);
+
+            const badgesHtmlParts = [];
+            if (primaryCategory) {
+                badgesHtmlParts.push('<span class="pl-category-badge">' + escapeHtml(primaryCategory) + '</span>');
+            }
+            if (idea.enriched) {
+                badgesHtmlParts.push('<span class="pl-enriched-badge">✨ <?php echo esc_js(__('Enriched', 'product-launch')); ?></span>');
+            }
+            const badgesHtml = badgesHtmlParts.length
+                ? '<div class="pl-idea-badges">' + badgesHtmlParts.join('') + '</div>'
+                : '';
+
             let tagsHtml = '';
             if (Array.isArray(idea.category_labels) && idea.category_labels.length) {
                 tagsHtml = '<div class="pl-idea-tags">' +
@@ -248,7 +270,7 @@ if (!defined('ABSPATH')) {
                             '<span class="pl-score-number">' + escapeHtml(String(score)) + '</span>' +
                             '<span class="pl-score-label"><?php echo esc_js(__('Score', 'product-launch')); ?></span>' +
                         '</div>' +
-                        (idea.enriched ? '<span class="pl-enriched-badge">✨ <?php echo esc_js(__('Enriched', 'product-launch')); ?></span>' : '') +
+                        badgesHtml +
                     '</div>' +
                     '<div class="pl-idea-body">' +
                         '<h3 class="pl-idea-title">' + escapeHtml(truncated) + '</h3>' +
@@ -392,6 +414,23 @@ if (!defined('ABSPATH')) {
                     '<p>' + escapeHtml(message) + '</p>' +
                 '</div>'
             );
+        }
+
+        function getPrimaryCategory(idea) {
+            if (Array.isArray(idea.category_labels) && idea.category_labels.length) {
+                return idea.category_labels[0];
+            }
+
+            if (idea.classification && Array.isArray(idea.classification.industries) && idea.classification.industries.length) {
+                return idea.classification.industries[0];
+            }
+
+            if (idea.category) {
+                const slug = String(idea.category);
+                return categoryLabels[slug] || slug;
+            }
+
+            return '';
         }
     });
 })(jQuery);
