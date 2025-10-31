@@ -256,32 +256,42 @@ function pl_create_validation_tables() {
     global $wpdb;
     $charset_collate = $wpdb->get_charset_collate();
 
-    // Main validations table
     $table_validations = $wpdb->prefix . 'pl_validations';
     $sql_validations = "CREATE TABLE IF NOT EXISTS `$table_validations` (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        validation_id VARCHAR(32) UNIQUE NOT NULL,
         user_id BIGINT UNSIGNED NOT NULL,
         site_id BIGINT UNSIGNED NOT NULL DEFAULT 1,
         business_idea TEXT NOT NULL,
         external_api_id VARCHAR(255) NULL,
         validation_score INT DEFAULT 0,
-        confidence_level VARCHAR(50) NULL,
-        validation_status VARCHAR(50) DEFAULT 'pending',
-        enrichment_status VARCHAR(50) DEFAULT 'pending',
+        confidence_level VARCHAR(20) NULL,
+        confidence_score DECIMAL(5,2) DEFAULT 0,
+        market_demand_score INT DEFAULT 0,
+        competition_score INT DEFAULT 0,
+        monetization_score INT DEFAULT 0,
+        feasibility_score INT DEFAULT 0,
+        ai_analysis_score INT DEFAULT 0,
+        social_proof_score INT DEFAULT 0,
+        validation_status VARCHAR(50) DEFAULT 'completed',
+        enrichment_status VARCHAR(50) DEFAULT 'completed',
         library_published TINYINT(1) NOT NULL DEFAULT 0,
         published_at DATETIME NULL,
+        expires_at DATETIME NULL,
         core_data LONGTEXT NULL,
+        signals_data LONGTEXT NULL,
+        recommendations_data LONGTEXT NULL,
+        phase_prefill_data LONGTEXT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
+        UNIQUE KEY validation_uid (validation_id),
         KEY user_site (user_id, site_id),
         KEY external_id (external_api_id),
-        KEY status (validation_status),
-        KEY created (created_at),
-        KEY published (library_published)
+        KEY published (library_published, expires_at),
+        KEY score (validation_score, confidence_score)
     ) $charset_collate;";
 
-    // Enrichment cache table
     $table_enrichment = $wpdb->prefix . 'pl_validation_enrichment';
     $sql_enrichment = "CREATE TABLE IF NOT EXISTS `$table_enrichment` (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -294,7 +304,19 @@ function pl_create_validation_tables() {
         KEY fetched (fetched_at)
     ) $charset_collate;";
 
-    // User validation quota tracking
+    $table_signals = $wpdb->prefix . 'pl_validation_signals';
+    $sql_signals = "CREATE TABLE IF NOT EXISTS `$table_signals` (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        validation_id VARCHAR(32) NOT NULL,
+        signal_type VARCHAR(50) NOT NULL,
+        signal_data LONGTEXT NULL,
+        cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME NULL,
+        PRIMARY KEY (id),
+        KEY validation_signal (validation_id, signal_type),
+        KEY expires (expires_at)
+    ) $charset_collate;";
+
     $table_quota = $wpdb->prefix . 'pl_validation_quota';
     $sql_quota = "CREATE TABLE IF NOT EXISTS `$table_quota` (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -310,6 +332,7 @@ function pl_create_validation_tables() {
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     dbDelta($sql_validations);
     dbDelta($sql_enrichment);
+    dbDelta($sql_signals);
     dbDelta($sql_quota);
 }
 
@@ -369,6 +392,9 @@ function pl_get_default_settings() {
     return [
         'openai_key' => '',
         'ai_model' => 'gpt-4o-mini',
+        'serp_api_key' => '',
+        'reddit_api_key' => '',
+        'producthunt_token' => '',
         'rate_limit_per_min' => 20,
         'timeout' => 30,
         'max_tokens' => 1000,
@@ -1751,3 +1777,79 @@ add_action('admin_enqueue_scripts', function() {
         true
     );
 }, 100);
+
+/**
+ * Securely store third-party API keys using application salts.
+ */
+function pl_store_api_key_encrypted($service, $key) {
+    if (!function_exists('openssl_encrypt')) {
+        return update_site_option("pl_api_{$service}", $key);
+    }
+
+    $encryption_key = wp_salt('auth');
+    $iv = openssl_random_pseudo_bytes(16);
+
+    $encrypted = openssl_encrypt(
+        $key,
+        'AES-256-CBC',
+        $encryption_key,
+        0,
+        $iv
+    );
+
+    return update_site_option("pl_api_{$service}", base64_encode($iv . $encrypted));
+}
+
+/**
+ * Retrieve an API key stored with {@see pl_store_api_key_encrypted}.
+ */
+function pl_get_api_key_encrypted($service) {
+    $stored = get_site_option("pl_api_{$service}");
+
+    if (empty($stored)) {
+        return '';
+    }
+
+    if (!function_exists('openssl_decrypt')) {
+        return $stored;
+    }
+
+    $decoded = base64_decode($stored, true);
+    if (false === $decoded || strlen($decoded) < 17) {
+        return $stored;
+    }
+
+    $iv = substr($decoded, 0, 16);
+    $payload = substr($decoded, 16);
+    $encryption_key = wp_salt('auth');
+
+    $decrypted = openssl_decrypt(
+        $payload,
+        'AES-256-CBC',
+        $encryption_key,
+        0,
+        $iv
+    );
+
+    return $decrypted ? $decrypted : '';
+}
+
+/**
+ * Basic rate limiting helper per API service and user.
+ */
+function pl_check_api_rate_limit($service, $limit_per_hour = 100) {
+    $key = "pl_api_rate_{$service}_" . get_current_user_id();
+    $count = get_transient($key);
+
+    if (!$count) {
+        set_transient($key, 1, HOUR_IN_SECONDS);
+        return true;
+    }
+
+    if ($count >= $limit_per_hour) {
+        return new WP_Error('rate_limit', sprintf(__('API rate limit exceeded for %s', 'product-launch'), $service));
+    }
+
+    set_transient($key, $count + 1, HOUR_IN_SECONDS);
+    return true;
+}
