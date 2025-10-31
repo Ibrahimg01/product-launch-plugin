@@ -29,7 +29,13 @@ class PL_Validation_Engine_V3 {
      * Load API credentials from WordPress options
      */
     private function load_api_credentials() {
-        $settings = pl_get_settings();
+        if (function_exists('pl_get_settings')) {
+            $settings = pl_get_settings();
+        } elseif (function_exists('pl_get_default_settings')) {
+            $settings = pl_get_default_settings();
+        } else {
+            $settings = [];
+        }
 
         $this->openai_key = $settings['openai_key'] ?? '';
         $this->serp_api_key = get_site_option('pl_serp_api_key', '');
