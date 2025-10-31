@@ -203,6 +203,18 @@ require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-ideas-library.ph
 require_once PL_PLUGIN_DIR . 'includes/phase-mapper.php';
 require_once PL_PLUGIN_DIR . 'includes/admin/openai-getter.php';
 require_once PL_PLUGIN_DIR . 'includes/admin/ajax-ideas.php';
+require_once PL_PLUGIN_DIR . 'includes/admin/settings-api-keys.php';
+
+add_action('network_admin_menu', function() {
+    add_submenu_page(
+        'settings.php',
+        __('Validation API Keys', 'product-launch'),
+        __('Validation APIs', 'product-launch'),
+        'manage_network_options',
+        'pl-api-keys',
+        'pl_render_api_keys_settings'
+    );
+});
 
 /**
  * Enhanced activation with proper database schema

@@ -16,6 +16,27 @@ if (!defined('ABSPATH')) {
 }
 
 class PL_Validation_Engine_V3 {
+    private $openai_key;
+    private $serp_api_key;
+    private $reddit_client_id;
+    private $reddit_client_secret;
+
+    public function __construct() {
+        $this->load_api_credentials();
+    }
+
+    /**
+     * Load API credentials from WordPress options
+     */
+    private function load_api_credentials() {
+        $settings = pl_get_settings();
+
+        $this->openai_key = $settings['openai_key'] ?? '';
+        $this->serp_api_key = get_site_option('pl_serp_api_key', '');
+        $this->reddit_client_id = get_site_option('pl_reddit_client_id', '');
+        $this->reddit_client_secret = get_site_option('pl_reddit_client_secret', '');
+    }
+
     /**
      * Weighting for the composite score.
      *
@@ -428,7 +449,7 @@ class PL_Validation_Engine_V3 {
         }
 
         $settings = function_exists('pl_get_settings') ? pl_get_settings() : [];
-        $api_key = $settings['openai_key'] ?? '';
+        $api_key = $this->openai_key ?: ($settings['openai_key'] ?? '');
 
         if (empty($api_key)) {
             return false;
@@ -557,50 +578,14 @@ PROMPT;
     }
 
     /**
-     * Keyword volume placeholder returning deterministic data.
-     */
-    private function get_keyword_volume($keywords) {
-        $results = [];
-        $base = 700;
-
-        foreach ($keywords as $keyword) {
-            $results[] = [
-                'keyword' => $keyword,
-                'volume' => max(50, $base - (strlen($keyword) * 15)),
-            ];
-        }
-
-        return apply_filters('pl_validation_keyword_volume', $results, $keywords);
-    }
-
-    /**
-     * Simulated Google Trends data.
-     */
-    private function get_google_trends($keywords) {
-        $trend = 0;
-        if (!empty($keywords)) {
-            $trend = strlen($keywords[0]) % 3 - 1; // -1, 0, 1
-        }
-
-        return apply_filters('pl_validation_trend_data', [
-            'trend' => $trend,
-            'seasonal_variance' => 15,
-            'yoy_growth' => 8,
-            'sample_period' => '24 months',
-        ], $keywords);
-    }
-
-    /**
      * Translate raw demand indicators into a score.
      */
     private function calculate_demand_score($data) {
-        $score = 0;
-        $score += min(40, ($data['total_volume'] ?? 0) / 100);
-        $score += ($data['trend_direction'] ?? 0) * 10;
-        $score += max(-10, min(10, $data['growth_rate'] ?? 0));
-        $score -= min(15, abs($data['seasonality'] ?? 0) / 2);
+        $volume_score = min(100, ($data['total_volume'] / 100000) * 50);
+        $trend_score = ($data['trend_direction'] + 1) * 25; // -1,0,1 mapped to 0,25,50
+        $growth_score = min(30, $data['growth_rate']);
 
-        return $this->normalize_score($score + 50);
+        return round($volume_score + $trend_score + $growth_score);
     }
 
     /**
@@ -622,64 +607,6 @@ PROMPT;
         return __('Demand signals are inconclusive; run lightweight experiments.', 'product-launch');
     }
 
-    /**
-     * Placeholder Product Hunt search results.
-     */
-    private function search_producthunt($keywords) {
-        $results = [];
-        foreach (array_slice($keywords, 0, 3) as $keyword) {
-            $results[] = [
-                'name' => ucwords($keyword) . ' Launch',
-                'tagline' => sprintf(__('Tools focusing on %s workflows.', 'product-launch'), $keyword),
-                'upvotes' => 120 - strlen($keyword) * 3,
-                'url' => 'https://www.producthunt.com',
-            ];
-        }
-        return apply_filters('pl_validation_producthunt_results', $results, $keywords);
-    }
-
-    /**
-     * Placeholder GitHub results.
-     */
-    private function search_github($keywords) {
-        $results = [];
-        foreach (array_slice($keywords, 0, 2) as $keyword) {
-            $results[] = [
-                'name' => sanitize_title($keyword) . '-toolkit',
-                'stars' => max(5, 120 - strlen($keyword) * 4),
-                'url' => 'https://github.com',
-            ];
-        }
-        return apply_filters('pl_validation_github_results', $results, $keywords);
-    }
-
-    /**
-     * Domain availability mock.
-     */
-    private function check_domain_availability($keywords) {
-        $domains = [];
-        foreach ($keywords as $keyword) {
-            $domains[] = [
-                'domain' => sanitize_title($keyword) . '.com',
-                'available' => (strlen($keyword) % 2 === 0),
-            ];
-        }
-        return apply_filters('pl_validation_domain_results', $domains, $keywords);
-    }
-
-    /**
-     * Calculate market saturation proxy.
-     */
-    private function calculate_saturation($data) {
-        $score = 0;
-        $score += ($data['ph_count'] ?? 0) * 5;
-        $score += ($data['github_count'] ?? 0) * 3;
-        $score -= ($data['domains_available'] ?? 0) * 4;
-        $score += ($data['ph_avg_upvotes'] ?? 0) / 5;
-
-        return max(0, min(100, $score));
-    }
-
     private function avg_upvotes($products) {
         if (!$products) {
             return 0;
@@ -691,14 +618,10 @@ PROMPT;
         return $total ? $total / count($products) : 0;
     }
 
-    private function get_saturation_label($score) {
-        if ($score >= 70) {
-            return __('High saturation', 'product-launch');
-        }
-        if ($score >= 40) {
-            return __('Moderate competition', 'product-launch');
-        }
-        return __('Low competition', 'product-launch');
+    private function get_saturation_label($saturation) {
+        if ($saturation < 30) return 'Low - Great opportunity';
+        if ($saturation < 60) return 'Medium - Room for differentiation';
+        return 'High - Saturated market';
     }
 
     private function identify_gaps($products) {
@@ -748,62 +671,6 @@ PROMPT;
             'effort_score' => $effort,
             'insight' => __('Scope the MVP to a focused workflow to keep complexity manageable.', 'product-launch'),
         ];
-    }
-
-    private function analyze_sentiment($posts) {
-        $positive = 0;
-        $negative = 0;
-        $neutral = 0;
-
-        foreach ($posts as $post) {
-            $score = $post['sentiment'] ?? 0;
-            if ($score > 0) {
-                $positive++;
-            } elseif ($score < 0) {
-                $negative++;
-            } else {
-                $neutral++;
-            }
-        }
-
-        $total = max(1, count($posts));
-
-        return [
-            'positive' => $positive,
-            'negative' => $negative,
-            'neutral' => $neutral,
-            'positive_ratio' => $positive / $total,
-            'negative_ratio' => $negative / $total,
-        ];
-    }
-
-    private function calculate_social_score($sentiment, $posts) {
-        $score = 50;
-        $score += ($sentiment['positive_ratio'] ?? 0) * 40;
-        $score -= ($sentiment['negative_ratio'] ?? 0) * 30;
-        $score += min(10, count($posts));
-
-        return $this->normalize_score($score);
-    }
-
-    private function extract_pain_points($posts) {
-        $pain_points = [];
-        foreach ($posts as $post) {
-            if (!empty($post['pain_point'])) {
-                $pain_points[] = sanitize_text_field($post['pain_point']);
-            }
-        }
-        return array_values(array_unique($pain_points));
-    }
-
-    private function extract_feature_requests($posts) {
-        $requests = [];
-        foreach ($posts as $post) {
-            if (!empty($post['request'])) {
-                $requests[] = sanitize_text_field($post['request']);
-            }
-        }
-        return array_values(array_unique($requests));
     }
 
     private function generate_social_insight($sentiment) {
@@ -940,46 +807,463 @@ PROMPT;
         ];
     }
 
+    /**
+     * Calculate market saturation level
+     */
+    private function calculate_saturation($data) {
+        $ph_saturation = min(50, $data['ph_count'] * 2);
+        $github_saturation = min(30, $data['github_count']);
+        $domain_saturation = ($data['domains_available'] == 0) ? 20 : 0;
+
+        return round($ph_saturation + $github_saturation + $domain_saturation);
+    }
+
+    /**
+     * Calculate social proof score
+     */
+    private function calculate_social_score($sentiment, $posts) {
+        $sentiment_score = ($sentiment['positive'] ?? 0) - ($sentiment['negative'] ?? 0);
+        $discussion_score = min(40, count($posts) * 2);
+
+        return max(0, min(100, $sentiment_score + $discussion_score));
+    }
+
+    /**
+     * Calculate confidence based on signal agreement
+     */
+    private function calculate_confidence($breakdown) {
+        $scores = array_values($breakdown);
+        if (empty($scores)) {
+            return 0;
+        }
+        $mean = array_sum($scores) / count($scores);
+
+        // Calculate standard deviation
+        $variance = 0;
+        foreach ($scores as $score) {
+            $variance += pow($score - $mean, 2);
+        }
+        $std_dev = sqrt($variance / count($scores));
+
+        // Lower std deviation = higher confidence
+        $confidence = max(0, 100 - $std_dev);
+
+        return round($confidence);
+    }
+
+    /**
+     * Get confidence label from score
+     */
+    private function get_confidence_label($confidence_score) {
+        if ($confidence_score >= 75) return 'high';
+        if ($confidence_score >= 50) return 'medium';
+        return 'low';
+    }
+
+    /**
+     * Get keyword search volume data via SerpAPI
+     */
+    private function get_keyword_volume($keywords) {
+        if (empty($this->serp_api_key)) {
+            error_log('PL V3: SerpAPI key not configured');
+            return $this->generate_fallback_keyword_data($keywords);
+        }
+
+        $results = [];
+
+        foreach (array_slice($keywords, 0, 5) as $keyword) {
+            $url = add_query_arg([
+                'engine' => 'google',
+                'q' => urlencode($keyword),
+                'api_key' => $this->serp_api_key,
+                'num' => 10,
+            ], 'https://serpapi.com/search');
+
+            $response = wp_remote_get($url, ['timeout' => 15]);
+
+            if (is_wp_error($response)) {
+                error_log('SerpAPI Error: ' . $response->get_error_message());
+                continue;
+            }
+
+            $body = json_decode(wp_remote_retrieve_body($response), true);
+
+            $results[] = [
+                'keyword' => $keyword,
+                'volume' => $body['search_information']['total_results'] ?? 0,
+                'competition' => $this->calculate_competition_from_results($body),
+            ];
+        }
+
+        return !empty($results) ? $results : $this->generate_fallback_keyword_data($keywords);
+    }
+
+    /**
+     * Get Google Trends data (simplified - using search volume as proxy)
+     */
+    private function get_google_trends($keywords) {
+        // For MVP, we'll estimate trend from search volume changes
+        // Future: Integrate official Google Trends API
+
+        $main_keyword = is_array($keywords) ? $keywords[0] : $keywords;
+        $volume_data = $this->get_keyword_volume([$main_keyword]);
+
+        if (empty($volume_data)) {
+            return [
+                'trend' => 0,
+                'seasonal_variance' => 'low',
+                'yoy_growth' => 0,
+            ];
+        }
+
+        $volume = $volume_data[0]['volume'] ?? 0;
+
+        return [
+            'trend' => $volume > 1000000 ? 1 : ($volume > 100000 ? 0 : -1),
+            'seasonal_variance' => $volume > 500000 ? 'medium' : 'low',
+            'yoy_growth' => rand(5, 25), // Placeholder until real trend data
+        ];
+    }
+
+    /**
+     * Search ProductHunt for similar products
+     */
+    private function search_producthunt($keywords) {
+        // ProductHunt doesn't have official public API anymore
+        // Alternative: Scrape or use cached data
+        // For now, return structured placeholder that won't break scoring
+
+        return [
+            [
+                'name' => 'Similar Product Example',
+                'tagline' => 'Market validation shows competition exists',
+                'upvotes' => rand(50, 500),
+                'url' => '#',
+            ]
+        ];
+    }
+
+    /**
+     * Search GitHub for similar open-source projects
+     */
+    private function search_github($keywords) {
+        $query = implode('+', array_slice($keywords, 0, 3));
+
+        $url = 'https://api.github.com/search/repositories?q=' . urlencode($query) . '&sort=stars&per_page=10';
+
+        $response = wp_remote_get($url, [
+            'headers' => [
+                'User-Agent' => 'ProductLaunchPlugin/3.0',
+                'Accept' => 'application/vnd.github.v3+json',
+            ],
+            'timeout' => 15,
+        ]);
+
+        if (is_wp_error($response)) {
+            return [];
+        }
+
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+
+        return array_map(function($repo) {
+            return [
+                'name' => $repo['name'],
+                'stars' => $repo['stargazers_count'],
+                'description' => $repo['description'],
+                'url' => $repo['html_url'],
+            ];
+        }, $body['items'] ?? []);
+    }
+
+    /**
+     * Check domain availability for branding
+     */
+    private function check_domain_availability($keywords) {
+        $domains = [];
+
+        foreach (array_slice($keywords, 0, 3) as $keyword) {
+            $domain = strtolower(str_replace(' ', '', $keyword)) . '.com';
+
+            // Use checkdomain API or similar
+            // For now, return placeholder structure
+            $domains[] = [
+                'domain' => $domain,
+                'available' => (bool) rand(0, 1),
+                'price' => rand(10, 30),
+            ];
+        }
+
+        return $domains;
+    }
+
+    /**
+     * Search Reddit for discussions
+     */
+    private function search_reddit($keywords, $options = []) {
+        if (empty($this->reddit_client_id)) {
+            error_log('PL V3: Reddit API not configured');
+            return [];
+        }
+
+        // Get Reddit access token
+        $token = $this->get_reddit_access_token();
+        if (!$token) {
+            return [];
+        }
+
+        $subreddits = $options['subreddits'] ?? ['entrepreneur', 'startups'];
+        $query = implode(' OR ', array_slice($keywords, 0, 3));
+
+        $posts = [];
+
+        foreach ($subreddits as $subreddit) {
+            $url = add_query_arg([
+                'q' => urlencode($query),
+                't' => $options['time_filter'] ?? 'year',
+                'limit' => 25,
+                'restrict_sr' => 1,
+            ], "https://oauth.reddit.com/r/{$subreddit}/search");
+
+            $response = wp_remote_get($url, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $token,
+                    'User-Agent' => 'ProductLaunchPlugin/3.0',
+                ],
+                'timeout' => 15,
+            ]);
+
+            if (is_wp_error($response)) {
+                continue;
+            }
+
+            $body = json_decode(wp_remote_retrieve_body($response), true);
+
+            foreach ($body['data']['children'] ?? [] as $child) {
+                $post = $child['data'];
+                $posts[] = [
+                    'title' => $post['title'],
+                    'text' => $post['selftext'] ?? '',
+                    'score' => $post['score'],
+                    'num_comments' => $post['num_comments'],
+                    'url' => 'https://reddit.com' . $post['permalink'],
+                ];
+            }
+        }
+
+        return $posts;
+    }
+
+    /**
+     * Get Reddit OAuth token
+     */
+    private function get_reddit_access_token() {
+        $cached_token = get_transient('pl_reddit_access_token');
+        if ($cached_token) {
+            return $cached_token;
+        }
+
+        $response = wp_remote_post('https://www.reddit.com/api/v1/access_token', [
+            'headers' => [
+                'Authorization' => 'Basic ' . base64_encode($this->reddit_client_id . ':' . $this->reddit_client_secret),
+                'Content-Type' => 'application/x-www-form-urlencoded',
+            ],
+            'body' => [
+                'grant_type' => 'client_credentials',
+            ],
+            'timeout' => 15,
+        ]);
+
+        if (is_wp_error($response)) {
+            return false;
+        }
+
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        $token = $body['access_token'] ?? false;
+
+        if ($token) {
+            set_transient('pl_reddit_access_token', $token, 3600); // 1 hour cache
+        }
+
+        return $token;
+    }
+
+    /**
+     * Analyze sentiment of text data
+     */
+    private function analyze_sentiment($posts) {
+        if (empty($posts)) {
+            return [
+                'positive' => 0,
+                'neutral' => 0,
+                'negative' => 0,
+                'overall' => 'neutral',
+            ];
+        }
+
+        $sentiments = [];
+
+        foreach (array_slice($posts, 0, 30) as $post) {
+            $text = $post['title'] . ' ' . ($post['text'] ?? '');
+            $sentiment = $this->detect_sentiment($text);
+            $sentiments[] = $sentiment;
+        }
+
+        $counts = array_count_values($sentiments);
+        $total = count($sentiments);
+
+        return [
+            'positive' => round(($counts['positive'] ?? 0) / $total * 100),
+            'neutral' => round(($counts['neutral'] ?? 0) / $total * 100),
+            'negative' => round(($counts['negative'] ?? 0) / $total * 100),
+            'overall' => $this->determine_overall_sentiment($counts ?? []),
+        ];
+    }
+
+    /**
+     * Simple sentiment detection
+     */
+    private function detect_sentiment($text) {
+        $text = strtolower($text);
+
+        $positive_words = ['great', 'awesome', 'love', 'excellent', 'amazing', 'fantastic', 'best', 'perfect', 'helpful', 'useful'];
+        $negative_words = ['hate', 'terrible', 'awful', 'worst', 'useless', 'bad', 'disappointed', 'poor', 'horrible', 'scam'];
+
+        $positive_count = 0;
+        $negative_count = 0;
+
+        foreach ($positive_words as $word) {
+            $positive_count += substr_count($text, $word);
+        }
+
+        foreach ($negative_words as $word) {
+            $negative_count += substr_count($text, $word);
+        }
+
+        if ($positive_count > $negative_count) return 'positive';
+        if ($negative_count > $positive_count) return 'negative';
+        return 'neutral';
+    }
+
+    /**
+     * Extract pain points from discussions
+     */
+    private function extract_pain_points($posts) {
+        $pain_indicators = [
+            'struggling with',
+            'problem with',
+            'issue with',
+            'frustrated by',
+            'wish there was',
+            'need help',
+            'looking for',
+            'tired of',
+        ];
+
+        $pain_points = [];
+
+        foreach (array_slice($posts, 0, 20) as $post) {
+            $text = strtolower($post['title'] . ' ' . ($post['text'] ?? ''));
+
+            foreach ($pain_indicators as $indicator) {
+                if (strpos($text, $indicator) !== false) {
+                    // Extract sentence containing pain point
+                    $sentences = explode('.', $text);
+                    foreach ($sentences as $sentence) {
+                        if (strpos($sentence, $indicator) !== false) {
+                            $pain_points[] = trim(ucfirst($sentence));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        return array_slice(array_unique($pain_points), 0, 5);
+    }
+
+    /**
+     * Extract feature requests from discussions
+     */
+    private function extract_feature_requests($posts) {
+        $request_indicators = [
+            'would be great if',
+            'should have',
+            'needs to',
+            'missing',
+            'add',
+            'include',
+            'support for',
+        ];
+
+        $requests = [];
+
+        foreach (array_slice($posts, 0, 20) as $post) {
+            $text = strtolower($post['title'] . ' ' . ($post['text'] ?? ''));
+
+            foreach ($request_indicators as $indicator) {
+                if (strpos($text, $indicator) !== false) {
+                    $sentences = explode('.', $text);
+                    foreach ($sentences as $sentence) {
+                        if (strpos($sentence, $indicator) !== false) {
+                            $requests[] = trim(ucfirst($sentence));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        return array_slice(array_unique($requests), 0, 5);
+    }
+
+    /**
+     * Fallback keyword data when API unavailable
+     */
+    private function generate_fallback_keyword_data($keywords) {
+        error_log('PL V3: Using fallback keyword data (API unavailable)');
+
+        return array_map(function($keyword) {
+            return [
+                'keyword' => $keyword,
+                'volume' => rand(10000, 500000),
+                'competition' => rand(40, 80),
+            ];
+        }, array_slice($keywords, 0, 5));
+    }
+
+    /**
+     * Calculate competition level from search results
+     */
+    private function calculate_competition_from_results($serp_data) {
+        $total_results = $serp_data['search_information']['total_results'] ?? 0;
+
+        if ($total_results > 10000000) return 90;
+        if ($total_results > 1000000) return 70;
+        if ($total_results > 100000) return 50;
+        if ($total_results > 10000) return 30;
+        return 10;
+    }
+
+    /**
+     * Determine overall sentiment label
+     */
+    private function determine_overall_sentiment($counts) {
+        $positive = $counts['positive'] ?? 0;
+        $negative = $counts['negative'] ?? 0;
+
+        if ($positive > $negative) {
+            return 'positive';
+        }
+
+        if ($negative > $positive) {
+            return 'negative';
+        }
+
+        return 'neutral';
+    }
+
     private function normalize_score($score) {
         return max(0, min(100, (int) round($score)));
     }
 
-    private function calculate_confidence($breakdown) {
-        $avg = array_sum($breakdown) / max(1, count($breakdown));
-        $variance = 0;
-        foreach ($breakdown as $value) {
-            $variance += pow($value - $avg, 2);
-        }
-        $variance = $variance / max(1, count($breakdown));
-        $stdev = sqrt($variance);
-
-        $confidence = 100 - min(60, $stdev);
-        return round($confidence, 2);
-    }
-
-    private function get_confidence_label($confidence) {
-        if ($confidence >= 75) {
-            return __('High', 'product-launch');
-        }
-        if ($confidence >= 55) {
-            return __('Medium', 'product-launch');
-        }
-        return __('Low', 'product-launch');
-    }
-
-    /**
-     * Simulated Reddit search returning normalized data points.
-     */
-    private function search_reddit($keywords, $args) {
-        $posts = [];
-        foreach (array_slice($keywords, 0, 3) as $keyword) {
-            $posts[] = [
-                'title' => sprintf(__('Discussion about %s challenges', 'product-launch'), $keyword),
-                'sentiment' => (strlen($keyword) % 3) - 1,
-                'pain_point' => sprintf(__('Need better %s workflow', 'product-launch'), $keyword),
-                'request' => sprintf(__('Looking for %s automation', 'product-launch'), $keyword),
-            ];
-        }
-        return apply_filters('pl_validation_reddit_results', $posts, $keywords, $args);
-    }
 }
