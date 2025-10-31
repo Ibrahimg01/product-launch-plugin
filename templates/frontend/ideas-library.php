@@ -278,7 +278,7 @@ if (!defined('ABSPATH')) {
                 const hasReport = !!idea.has_report;
                 const viewLabel = escapeHtml(plLibrary.adminViewLabel || '<?php echo esc_js(__('View Report', 'product-launch')); ?>');
                 const pushLabel = escapeHtml(plLibrary.adminPushLabel || '<?php echo esc_js(__('Push to 8 Phases', 'product-launch')); ?>');
-                const tooltip = escapeAttribute(plLibrary.adminDisabledTooltip || '<?php echo esc_js(__('Demo idea — no report available.', 'product-launch')); ?>');
+                const tooltip = escapeAttribute(plLibrary.adminDisabledTooltip || '<?php echo esc_js(__('Validation sample — report not yet available.', 'product-launch')); ?>');
                 const disabledAttrs = hasReport ? '' : ` disabled aria-disabled="true" title="${tooltip}"`;
 
                 adminActions = `

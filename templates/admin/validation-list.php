@@ -13,6 +13,18 @@ if (!defined('ABSPATH')) {
     <h1 class="wp-heading-inline"><?php _e('All Validations', 'product-launch'); ?></h1>
     <hr class="wp-header-end">
 
+    <?php if (!empty($selected_validation_error)) : ?>
+        <div class="notice notice-error">
+            <p><?php echo esc_html($selected_validation_error); ?></p>
+        </div>
+    <?php elseif (!empty($selected_validation)) : ?>
+        <div class="pl-validation-report-container">
+            <?php $validation = $selected_validation; ?>
+            <?php include PL_PLUGIN_DIR . 'templates/admin/partials/validation-report-v3.php'; ?>
+            <?php unset($validation); ?>
+        </div>
+    <?php endif; ?>
+
     <?php if (!empty($can_manage_library)) : ?>
         <?php if (!empty($library_messages)) : ?>
             <?php foreach ($library_messages as $message) : ?>
@@ -194,7 +206,7 @@ if (!defined('ABSPATH')) {
                         </td>
                         <td><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($validation->created_at))); ?></td>
                         <td>
-                            <a href="#" class="button button-small pl-view-details" data-id="<?php echo esc_attr($validation->id); ?>">
+                            <a href="<?php echo esc_url(add_query_arg('validation_id', (int) $validation->id, $list_base_url)); ?>" class="button button-small pl-view-details">
                                 <?php _e('View', 'product-launch'); ?>
                             </a>
                             <a href="#" class="button button-small pl-delete-validation" data-id="<?php echo esc_attr($validation->id); ?>">

@@ -49,7 +49,7 @@ if (!defined('ABSPATH')) {
             <div class="pl-ideas-library-admin__callout-text">
                 <strong><?php esc_html_e('Need more ideas to populate the library?', 'product-launch'); ?></strong>
                 <p>
-                    <?php esc_html_e('Launch a discovery search to generate demo-friendly ideas, validate the scores, and publish them to every subsite in one click.', 'product-launch'); ?>
+                    <?php esc_html_e('Launch a discovery search to generate showcase-ready ideas, validate the scores, and publish them to every subsite in one click.', 'product-launch'); ?>
                 </p>
             </div>
             <div class="pl-ideas-library-admin__callout-actions">

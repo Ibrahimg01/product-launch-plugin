@@ -174,7 +174,7 @@ class PL_Ideas_Library {
             'adminContext' => (is_admin() && current_user_can('edit_posts')),
             'adminViewLabel' => __('View Report', 'product-launch'),
             'adminPushLabel' => __('Push to 8 Phases', 'product-launch'),
-            'adminDisabledTooltip' => __('Demo idea — no report available.', 'product-launch'),
+            'adminDisabledTooltip' => __('Validation sample — report not yet available.', 'product-launch'),
         ));
 
         ob_start();
@@ -225,7 +225,7 @@ class PL_Ideas_Library {
             'adminContext' => (is_admin() && current_user_can('edit_posts')),
             'adminViewLabel' => __('View Report', 'product-launch'),
             'adminPushLabel' => __('Push to 8 Phases', 'product-launch'),
-            'adminDisabledTooltip' => __('Demo idea — no report available.', 'product-launch'),
+            'adminDisabledTooltip' => __('Validation sample — report not yet available.', 'product-launch'),
         ));
 
         ob_start();
@@ -1458,7 +1458,7 @@ class PL_Ideas_Library {
     }
 
     /**
-     * Retrieve cached enrichment data with API fallback.
+     * Retrieve cached enrichment data with API defaults when unavailable.
      *
      * @param string $external_id External validation ID.
      * @param string $section     Section path.

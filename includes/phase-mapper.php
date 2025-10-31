@@ -138,6 +138,73 @@ if (!function_exists('is_get_by_path')) {
     }
 }
 
+if (!function_exists('pl_apply_v3_phase_data')) {
+    /**
+     * Apply V3 phase prefill data to user meta
+     *
+     * @param int $validation_id Validation database ID
+     * @param int $user_id Target user ID
+     * @param int $site_id Target site ID
+     * @param bool $overwrite Whether to overwrite existing data
+     * @return bool|WP_Error
+     */
+    function pl_apply_v3_phase_data($validation_id, $user_id, $site_id, $overwrite = false) {
+        global $wpdb;
+        $table = pl_get_validation_table_name(is_multisite() ? 'network' : 'site');
+
+        $validation = $wpdb->get_row($wpdb->prepare(
+            "SELECT phase_prefill_data FROM $table WHERE id = %d",
+            $validation_id
+        ));
+
+        if (!$validation || empty($validation->phase_prefill_data)) {
+            return new WP_Error('no_data', __('No phase data available for this validation.', 'product-launch'));
+        }
+
+        $phase_data = json_decode($validation->phase_prefill_data, true);
+
+        if (!is_array($phase_data)) {
+            return new WP_Error('invalid_data', __('Phase data is corrupted.', 'product-launch'));
+        }
+
+        $phases = [
+            'market_clarity',
+            'create_offer',
+            'create_service',
+            'build_funnel',
+            'email_sequences',
+            'organic_posts',
+            'facebook_ads',
+            'launch',
+        ];
+
+        foreach ($phases as $phase) {
+            if (empty($phase_data[$phase])) {
+                continue;
+            }
+
+            $meta_key = 'product_launch_progress_' . $phase . '_' . $site_id;
+            $existing = get_user_meta($user_id, $meta_key, true);
+
+            if ($existing && !$overwrite) {
+                // Merge new data with existing, preserving user entries
+                $existing_data = json_decode($existing, true);
+                if (is_array($existing_data)) {
+                    $phase_data[$phase] = array_merge($phase_data[$phase], $existing_data);
+                }
+            }
+
+            update_user_meta(
+                $user_id,
+                $meta_key,
+                wp_json_encode($phase_data[$phase])
+            );
+        }
+
+        return true;
+    }
+}
+
 if (!function_exists('is_apply_phase_mapping')) {
     /**
      * Apply selected mappings to WordPress options representing the launch phases.

@@ -88,14 +88,14 @@ class PL_Validation_Engine_V3 {
     }
 
     /**
-     * Extract market validation keywords, defaulting to deterministic fallbacks when AI is not available.
+     * Extract market validation keywords, defaulting to deterministic baselines when AI is not available.
      *
      * @param string $idea    The business idea.
      * @param array  $context Additional context from the user.
      *
      * @return array
      */
-    private function extract_validation_keywords($idea, $context = []) {
+    public function extract_validation_keywords($idea, $context = []) {
         $prompt = "Extract 5-8 specific keywords for market validation from this business idea. Focus on searchable terms, problem statements, and industry categories.\n\nIdea: {$idea}\n\nReturn as JSON array.";
 
         $messages = [
@@ -115,7 +115,7 @@ class PL_Validation_Engine_V3 {
         }
 
         if (!$keywords) {
-            $keywords = $this->fallback_keywords($idea, $context);
+            $keywords = $this->default_keywords($idea, $context);
         }
 
         return array_slice(array_unique($keywords), 0, 8);
@@ -124,7 +124,7 @@ class PL_Validation_Engine_V3 {
     /**
      * Derive basic keywords locally when AI extraction is not available.
      */
-    private function fallback_keywords($idea, $context = []) {
+    private function default_keywords($idea, $context = []) {
         $tokens = preg_split('/[^\p{L}\p{N}]+/u', strtolower($idea), -1, PREG_SPLIT_NO_EMPTY);
         $tokens = array_filter($tokens, function ($token) {
             return strlen($token) > 3;
@@ -269,7 +269,7 @@ class PL_Validation_Engine_V3 {
         }
 
         if (!is_array($analysis) || empty($analysis)) {
-            $analysis = $this->fallback_ai_validation($idea, $context);
+            $analysis = $this->default_ai_validation($idea, $context);
         }
 
         $score = isset($analysis['viability_score']) ? (int) $analysis['viability_score'] : 0;
@@ -371,7 +371,7 @@ class PL_Validation_Engine_V3 {
     private function map_to_phases($signals, $recommendations) {
         return [
             'market_clarity' => [
-                'target_audience' => $signals['ai_insights']['ideal_customer_profile']['demographics'] ?? '',
+                'target_audience' => $signals['ai_insights']['ideal_customer_profile']['audience_details'] ?? '',
                 'pain_points' => $signals['social']['pain_points'] ?? [],
                 'value_proposition' => $this->generate_value_prop($signals),
                 'market_size' => $this->format_market_size($signals['market'] ?? []),
@@ -514,7 +514,7 @@ Provide a JSON response with:
     "threats": []
   },
   "ideal_customer_profile": {
-    "demographics": "",
+    "audience_details": "",
     "psychographics": "",
     "pain_points": [],
     "online_behavior": ""
@@ -529,9 +529,9 @@ PROMPT;
     }
 
     /**
-     * Fallback AI validation structure when no response is available.
+     * Deterministic AI validation structure when no response is available.
      */
-    private function fallback_ai_validation($idea, $context) {
+    private function default_ai_validation($idea, $context) {
         $baseline_score = min(90, max(40, strlen($idea)));
 
         return [
@@ -543,7 +543,7 @@ PROMPT;
                 'threats' => [__('Well-funded incumbents may react quickly.', 'product-launch')],
             ],
             'ideal_customer_profile' => [
-                'demographics' => __('Professionals with budget authority', 'product-launch'),
+                'audience_details' => __('Professionals with budget authority', 'product-launch'),
                 'psychographics' => __('Value efficiency and rapid iteration', 'product-launch'),
                 'pain_points' => [__('Time-consuming manual workflows', 'product-launch')],
                 'online_behavior' => __('Active in niche communities and LinkedIn groups', 'product-launch'),

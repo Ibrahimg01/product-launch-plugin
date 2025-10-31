@@ -74,33 +74,28 @@ add_action('wp_ajax_is_admin_get_report', function () {
 add_action('wp_ajax_is_admin_push_to_phases', function () {
     check_ajax_referer('is_admin_push_nonce', 'nonce');
 
-    if (!current_user_can('edit_posts') && !current_user_can('manage_options') && !current_user_can('manage_network_options')) {
-        wp_send_json_error(array('message' => __('You do not have permission to push data.', 'product-launch')), 403);
+    if (!current_user_can('edit_posts') && !current_user_can('manage_options')) {
+        wp_send_json_error(['message' => __('Insufficient permissions.', 'product-launch')], 403);
     }
 
     $idea_raw = isset($_POST['idea_id']) ? sanitize_text_field(wp_unslash($_POST['idea_id'])) : '';
     $validation_id = is_admin_normalize_validation_id($idea_raw);
-    $selected = isset($_POST['selected']) ? (array) $_POST['selected'] : array();
     $overwrite = !empty($_POST['overwrite']);
 
-    $result = is_admin_get_validation_report($validation_id);
+    $user_id = get_current_user_id();
+    $site_id = get_current_blog_id();
+
+    // Use V3 phase data application
+    $result = pl_apply_v3_phase_data($validation_id, $user_id, $site_id, $overwrite);
 
     if (is_wp_error($result)) {
-        wp_send_json_error(array('message' => $result->get_error_message()), 404);
+        wp_send_json_error(['message' => $result->get_error_message()], 400);
     }
 
-    $clean_selected = array();
-    foreach ($selected as $key) {
-        $clean_selected[] = sanitize_key($key);
-    }
-
-    if (empty($clean_selected)) {
-        wp_send_json_error(array('message' => __('Select at least one destination field.', 'product-launch')), 400);
-    }
-
-    is_apply_phase_mapping($result['report'], $clean_selected, $overwrite);
-
-    wp_send_json_success(array('message' => __('Report data applied to launch phases.', 'product-launch')));
+    wp_send_json_success([
+        'message' => __('Validation data applied to all 8 phases.', 'product-launch'),
+        'redirect' => admin_url('admin.php?page=product-launch-market'),
+    ]);
 });
 
 add_action('wp_ajax_is_admin_validate_idea', function () {

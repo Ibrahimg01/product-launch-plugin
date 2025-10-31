@@ -81,12 +81,6 @@ jQuery(document).ready(function ($) {
         });
     });
 
-    $(document).on('click', '.pl-view-details', function (e) {
-        e.preventDefault();
-        const validationId = $(this).data('id');
-        window.alert('View details functionality will be implemented in Phase 4. Validation ID: ' + validationId);
-    });
-
     $(document).on('click', '.pl-toggle-publish', function (e) {
         e.preventDefault();
 
@@ -629,8 +623,8 @@ jQuery(document).ready(function ($) {
 
             const count = parseInt(meta.count, 10) || fallbackCount || 0;
             const query = meta.query ? escapeHtml(meta.query) : '';
-            const isDemo = !!meta.is_demo;
-            const demoMessage = meta.demo_message ? escapeHtml(meta.demo_message) : '';
+            const isSample = !!meta.is_sample;
+            const sampleMessage = meta.sample_message ? escapeHtml(meta.sample_message) : '';
 
             if (count <= 0) {
                 return '';
@@ -653,8 +647,8 @@ jQuery(document).ready(function ($) {
                 rendered += ' · ' + libraryLink;
             }
 
-            if (isDemo && demoMessage) {
-                rendered += '<br><span class="pl-network-demo-note">' + demoMessage + '</span>';
+            if (isSample && sampleMessage) {
+                rendered += '<br><span class="pl-network-sample-note">' + sampleMessage + '</span>';
             }
 
             return '<p class="pl-network-search-meta">' + rendered + '</p>';
