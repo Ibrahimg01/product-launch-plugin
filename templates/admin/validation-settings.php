@@ -22,35 +22,57 @@ if (!defined('ABSPATH')) {
         <table class="form-table">
             <tr>
                 <th scope="row">
-                    <label for="pl_validation_api_key"><?php _e('API Key', 'product-launch'); ?></label>
+                    <label for="pl_validation_serp_api_key"><?php _e('Keyword Intelligence API Key', 'product-launch'); ?></label>
                 </th>
                 <td>
                     <input type="text"
-                           id="pl_validation_api_key"
-                           name="pl_validation_api_key"
-                           value="<?php echo esc_attr($api_key); ?>"
+                           id="pl_validation_serp_api_key"
+                           name="pl_validation_serp_api_key"
+                           value="<?php echo esc_attr($serp_key); ?>"
                            class="regular-text">
                     <p class="description">
-                        <?php _e('Your validation API key. Will be replaced with APIFY key later.', 'product-launch'); ?>
+                        <?php _e('Used for Google Trends and keyword volume requests (SerpAPI/DataForSEO).', 'product-launch'); ?>
                     </p>
                 </td>
             </tr>
 
             <tr>
                 <th scope="row">
-                    <label for="pl_validation_api_endpoint"><?php _e('API Endpoint', 'product-launch'); ?></label>
+                    <label for="pl_validation_reddit_api_key"><?php _e('Reddit API Key', 'product-launch'); ?></label>
                 </th>
                 <td>
-                    <input type="url"
-                           id="pl_validation_api_endpoint"
-                           name="pl_validation_api_endpoint"
-                           value="<?php echo esc_attr($api_endpoint); ?>"
+                    <input type="text"
+                           id="pl_validation_reddit_api_key"
+                           name="pl_validation_reddit_api_key"
+                           value="<?php echo esc_attr($reddit_key); ?>"
                            class="regular-text">
                     <p class="description">
-                        <?php _e('Base API endpoint URL. Will be updated for APIFY integration.', 'product-launch'); ?>
+                        <?php _e('Required for sentiment analysis across startup subreddits.', 'product-launch'); ?>
                     </p>
                 </td>
             </tr>
+
+            <tr>
+                <th scope="row">
+                    <label for="pl_validation_producthunt_token"><?php _e('Product Hunt Token', 'product-launch'); ?></label>
+                </th>
+                <td>
+                    <input type="text"
+                           id="pl_validation_producthunt_token"
+                           name="pl_validation_producthunt_token"
+                           value="<?php echo esc_attr($producthunt_token); ?>"
+                           class="regular-text">
+                    <p class="description">
+                        <?php _e('Enables competition lookups from the Product Hunt API.', 'product-launch'); ?>
+                    </p>
+                </td>
+            </tr>
+
+            <tr>
+                <th scope="row">
+                    <label for="pl_validation_default_limit"><?php _e('Default Monthly Limit', 'product-launch'); ?></label>
+                </th>
+                <td>            </tr>
 
             <tr>
                 <th scope="row">

@@ -467,38 +467,71 @@ class PL_Ideas_Library {
      * @return array|false
      */
     private function fetch_library_ideas($params = array()) {
-        $endpoint = pl_get_validation_option('pl_validation_api_endpoint', 'https://api.explodingstartup.com/api/ideas');
-        $api_key = pl_get_validation_option('pl_validation_api_key', 'exp_live_05663cf87e3b406780a939cf079e59f3');
+        $page = isset($params['page']) ? max(1, (int) $params['page']) : 1;
+        $per_page = isset($params['per_page']) ? max(1, min(50, (int) $params['per_page'])) : 12;
 
-        if (empty($endpoint)) {
-            $endpoint = 'https://api.explodingstartup.com/api/ideas';
+        global $wpdb;
+        $table = pl_get_validation_table_name(is_multisite() ? 'network' : 'site');
+
+        $where = "WHERE library_published = 1";
+
+        if (!empty($params['min_score'])) {
+            $where .= $wpdb->prepare(' AND validation_score >= %d', (int) $params['min_score']);
         }
 
-        $query_string = http_build_query($params);
-        $url = trailingslashit(untrailingslashit($endpoint)) . 'cards?' . $query_string;
-
-        $response = wp_remote_get($url, array(
-            'headers' => array(
-                'Content-Type' => 'application/json',
-                'X-API-Key' => $api_key,
-            ),
-            'timeout' => 30,
-        ));
-
-        if (is_wp_error($response)) {
-            error_log('PL Library API Error: ' . $response->get_error_message());
-            return false;
+        if (!empty($params['enriched_only']) && 'true' === $params['enriched_only']) {
+            $where .= " AND confidence_level IN ('High','Medium')";
         }
 
-        $code = wp_remote_retrieve_response_code($response);
-        if (200 !== (int) $code) {
-            error_log('PL Library API HTTP Error: ' . $code);
-            return false;
+        if (!empty($params['search'])) {
+            $like = '%' . $wpdb->esc_like($params['search']) . '%';
+            $where .= $wpdb->prepare(' AND business_idea LIKE %s', $like);
         }
 
-        $data = json_decode(wp_remote_retrieve_body($response), true);
+        $order_by = 'validation_score';
+        $order = 'DESC';
 
-        return $data;
+        if (!empty($params['sort_by']) && 'date' === $params['sort_by']) {
+            $order_by = 'published_at';
+        }
+
+        if (!empty($params['order']) && 'asc' === strtolower($params['order'])) {
+            $order = 'ASC';
+        }
+
+        $offset = ($page - 1) * $per_page;
+
+        $items_sql = $wpdb->prepare(
+            "SELECT * FROM $table $where ORDER BY $order_by $order LIMIT %d OFFSET %d",
+            $per_page,
+            $offset
+        );
+
+        $records = $wpdb->get_results($items_sql);
+
+        $items = array();
+        if ($records) {
+            foreach ($records as $record) {
+                $formatted = $this->format_validation_for_library($record);
+                if ($formatted) {
+                    $formatted['source_type'] = 'library';
+                    $formatted['origin_label'] = __('Product Launch Library', 'product-launch');
+                    $formatted['id'] = !empty($record->validation_id) ? $record->validation_id : ('library-' . (int) $record->id);
+                    $formatted['external_api_id'] = $formatted['id'];
+                    $items[] = $formatted;
+                }
+            }
+        }
+
+        $total = (int) $wpdb->get_var("SELECT COUNT(*) FROM $table $where");
+        $total_pages = max(1, (int) ceil(max(1, $total) / max(1, $per_page)));
+
+        return array(
+            'items' => $items,
+            'total' => $total,
+            'total_pages' => $total_pages,
+            'page' => $page,
+        );
     }
 
     /**
@@ -627,6 +660,7 @@ class PL_Ideas_Library {
         $idea = $core;
         $idea['id'] = 'local-' . (int) $validation->id;
         $idea['source_type'] = 'validation';
+        $idea['validation_id'] = !empty($validation->validation_id) ? $validation->validation_id : ('local-' . (int) $validation->id);
         $idea['local_validation_id'] = (int) $validation->id;
         $idea['has_report'] = true;
         $idea['business_idea'] = $validation->business_idea;
@@ -645,7 +679,11 @@ class PL_Ideas_Library {
 
         $idea['category_labels'] = $this->map_slugs_to_labels($idea['category_slugs']);
         if (empty($idea['external_api_id'])) {
-            $idea['external_api_id'] = 'local-' . (int) $validation->id;
+            if (!empty($validation->validation_id)) {
+                $idea['external_api_id'] = $validation->validation_id;
+            } else {
+                $idea['external_api_id'] = 'local-' . (int) $validation->id;
+            }
         }
 
         return $idea;

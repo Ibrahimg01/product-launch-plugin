@@ -161,8 +161,6 @@ class PL_Validation_Admin {
      * Register plugin settings
      */
     public function register_settings() {
-        register_setting('pl_validation_settings', 'pl_validation_api_key');
-        register_setting('pl_validation_settings', 'pl_validation_api_endpoint');
         register_setting('pl_validation_settings', 'pl_validation_default_limit');
         register_setting('pl_validation_settings', 'pl_validation_cache_duration');
         register_setting('pl_validation_settings', 'pl_validation_auto_enrich');
@@ -773,14 +771,16 @@ class PL_Validation_Admin {
         if (isset($_POST['pl_validation_settings_submit'])) {
             check_admin_referer('pl_validation_settings');
 
-            $api_key = isset($_POST['pl_validation_api_key']) ? sanitize_text_field(wp_unslash($_POST['pl_validation_api_key'])) : '';
-            $api_endpoint = isset($_POST['pl_validation_api_endpoint']) ? esc_url_raw(wp_unslash($_POST['pl_validation_api_endpoint'])) : '';
+            $serp_key = isset($_POST['pl_validation_serp_api_key']) ? sanitize_text_field(wp_unslash($_POST['pl_validation_serp_api_key'])) : '';
+            $reddit_key = isset($_POST['pl_validation_reddit_api_key']) ? sanitize_text_field(wp_unslash($_POST['pl_validation_reddit_api_key'])) : '';
+            $producthunt_token = isset($_POST['pl_validation_producthunt_token']) ? sanitize_text_field(wp_unslash($_POST['pl_validation_producthunt_token'])) : '';
             $default_limit = isset($_POST['pl_validation_default_limit']) ? absint($_POST['pl_validation_default_limit']) : 3;
             $cache_duration = isset($_POST['pl_validation_cache_duration']) ? absint($_POST['pl_validation_cache_duration']) : 24;
             $auto_enrich = isset($_POST['pl_validation_auto_enrich']) ? 1 : 0;
 
-            pl_update_validation_option('pl_validation_api_key', $api_key);
-            pl_update_validation_option('pl_validation_api_endpoint', $api_endpoint);
+            pl_store_api_key_encrypted('serp', $serp_key);
+            pl_store_api_key_encrypted('reddit', $reddit_key);
+            pl_store_api_key_encrypted('producthunt', $producthunt_token);
             pl_update_validation_option('pl_validation_default_limit', max(1, $default_limit));
             pl_update_validation_option('pl_validation_cache_duration', max(1, $cache_duration));
             pl_update_validation_option('pl_validation_auto_enrich', $auto_enrich ? 1 : 0);
@@ -788,8 +788,9 @@ class PL_Validation_Admin {
             echo '<div class="notice notice-success"><p>' . esc_html__('Settings saved successfully!', 'product-launch') . '</p></div>';
         }
 
-        $api_key = pl_get_validation_option('pl_validation_api_key', 'exp_live_05663cf87e3b406780a939cf079e59f3');
-        $api_endpoint = pl_get_validation_option('pl_validation_api_endpoint', 'https://api.explodingstartup.com/api/ideas');
+        $serp_key = function_exists('pl_get_api_key_encrypted') ? pl_get_api_key_encrypted('serp') : '';
+        $reddit_key = function_exists('pl_get_api_key_encrypted') ? pl_get_api_key_encrypted('reddit') : '';
+        $producthunt_token = function_exists('pl_get_api_key_encrypted') ? pl_get_api_key_encrypted('producthunt') : '';
         $default_limit = pl_get_validation_option('pl_validation_default_limit', 3);
         $cache_duration = pl_get_validation_option('pl_validation_cache_duration', 24);
         $auto_enrich = pl_get_validation_option('pl_validation_auto_enrich', 1);

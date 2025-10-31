@@ -186,34 +186,66 @@ add_action('wp_ajax_is_admin_validate_idea', function () {
     $business_idea = isset($report['idea']['summary']) ? sanitize_text_field($report['idea']['summary']) : $report['idea']['title'];
     $business_idea = sanitize_text_field($business_idea);
 
+    $validation_id = isset($report['idea']['external_id']) && !empty($report['idea']['external_id'])
+        ? sanitize_text_field($report['idea']['external_id'])
+        : 'val_' . wp_generate_password(12, false);
+
+    $score_breakdown = isset($report['score']['breakdown']) && is_array($report['score']['breakdown'])
+        ? $report['score']['breakdown']
+        : array();
+
     $data = array(
-        'user_id'            => $user_id,
-        'site_id'            => $site_id,
-        'business_idea'      => $business_idea,
-        'external_api_id'    => isset($report['idea']['external_id']) ? sanitize_text_field($report['idea']['external_id']) : '',
-        'validation_score'   => isset($report['score']['overall']) ? (int) $report['score']['overall'] : 0,
-        'confidence_level'   => isset($report['score']['band']) ? sanitize_text_field($report['score']['band']) : '',
-        'validation_status'  => 'completed',
-        'enrichment_status'  => 'completed',
-        'library_published'  => 1,
-        'published_at'       => $now,
-        'core_data'          => wp_json_encode($report),
-        'created_at'         => $now,
-        'updated_at'         => $now,
+        'validation_id'       => $validation_id,
+        'user_id'             => $user_id,
+        'site_id'             => $site_id,
+        'business_idea'       => $business_idea,
+        'external_api_id'     => $validation_id,
+        'validation_score'    => isset($report['score']['overall']) ? (int) $report['score']['overall'] : 0,
+        'confidence_level'    => isset($report['score']['band']) ? sanitize_text_field($report['score']['band']) : '',
+        'confidence_score'    => isset($report['score']['confidence']) ? (float) $report['score']['confidence'] : 0,
+        'market_demand_score' => isset($score_breakdown['market_demand']) ? (int) $score_breakdown['market_demand'] : 0,
+        'competition_score'   => isset($score_breakdown['competition']) ? (int) $score_breakdown['competition'] : 0,
+        'monetization_score'  => isset($score_breakdown['monetization']) ? (int) $score_breakdown['monetization'] : 0,
+        'feasibility_score'   => isset($score_breakdown['feasibility']) ? (int) $score_breakdown['feasibility'] : 0,
+        'ai_analysis_score'   => isset($score_breakdown['ai_analysis']) ? (int) $score_breakdown['ai_analysis'] : 0,
+        'social_proof_score'  => isset($score_breakdown['social_proof']) ? (int) $score_breakdown['social_proof'] : 0,
+        'validation_status'   => 'completed',
+        'enrichment_status'   => 'completed',
+        'library_published'   => 1,
+        'published_at'        => $now,
+        'expires_at'          => isset($report['expires_at']) ? sanitize_text_field($report['expires_at']) : null,
+        'core_data'           => wp_json_encode($report),
+        'signals_data'        => wp_json_encode(isset($report['signals']) ? $report['signals'] : array()),
+        'recommendations_data'=> wp_json_encode(isset($report['recommendations']) ? $report['recommendations'] : array()),
+        'phase_prefill_data'  => wp_json_encode(isset($report['phase_prefill']) ? $report['phase_prefill'] : array()),
+        'created_at'          => $now,
+        'updated_at'          => $now,
     );
 
     $formats = array(
+        '%s', // validation_id
         '%d', // user_id
         '%d', // site_id
         '%s', // business_idea
         '%s', // external_api_id
         '%d', // validation_score
         '%s', // confidence_level
+        '%f', // confidence_score
+        '%d', // market_demand_score
+        '%d', // competition_score
+        '%d', // monetization_score
+        '%d', // feasibility_score
+        '%d', // ai_analysis_score
+        '%d', // social_proof_score
         '%s', // validation_status
         '%s', // enrichment_status
         '%d', // library_published
         '%s', // published_at
+        '%s', // expires_at
         '%s', // core_data
+        '%s', // signals_data
+        '%s', // recommendations_data
+        '%s', // phase_prefill_data
         '%s', // created_at
         '%s', // updated_at
     );

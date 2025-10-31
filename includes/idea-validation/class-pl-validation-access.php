@@ -246,13 +246,24 @@ class PL_Validation_Access {
 
         global $wpdb;
 
-        // Delete from validations table
+        // Fetch validation key before deleting
         $table_validations = $wpdb->prefix . 'pl_validations';
+        $validation_key = $wpdb->get_var($wpdb->prepare(
+            "SELECT validation_id FROM $table_validations WHERE id = %d",
+            $validation_id
+        ));
+
+        // Delete from validations table
         $wpdb->delete($table_validations, array('id' => $validation_id));
 
         // Delete cached enrichment data
         $table_enrichment = $wpdb->prefix . 'pl_validation_enrichment';
         $wpdb->delete($table_enrichment, array('validation_id' => $validation_id));
+
+        $table_signals = $wpdb->prefix . 'pl_validation_signals';
+        if (!empty($validation_key)) {
+            $wpdb->delete($table_signals, array('validation_id' => $validation_key));
+        }
 
         if (function_exists('pl_clear_library_cache')) {
             pl_clear_library_cache();
