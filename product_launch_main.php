@@ -188,33 +188,7 @@ define('PL_OPTION_NAME', 'pl_settings');
 define('PL_NETWORK_OPTION_NAME', 'pl_network_settings');
 define('PL_NONCE_ACTION', 'pl_nonce_action');
 
-// Validation system classes
-require_once PL_PLUGIN_DIR . 'includes/idea-validation/validation-migration-v3.php';
-require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-api.php';
-require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-quota.php';
-require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-access.php';
-require_once PL_PLUGIN_DIR . 'includes/idea-validation/validation-functions.php';
-require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-admin.php';
-require_once PL_PLUGIN_DIR . 'includes/idea-validation/validation-ajax.php';
-// Load frontend validation handler
-require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-frontend.php';
-// Load ideas library
-require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-ideas-library.php';
-require_once PL_PLUGIN_DIR . 'includes/phase-mapper.php';
 require_once PL_PLUGIN_DIR . 'includes/admin/openai-getter.php';
-require_once PL_PLUGIN_DIR . 'includes/admin/ajax-ideas.php';
-require_once PL_PLUGIN_DIR . 'includes/admin/settings-api-keys.php';
-
-add_action('network_admin_menu', function() {
-    add_submenu_page(
-        'settings.php',
-        __('Validation API Keys', 'product-launch'),
-        __('Validation APIs', 'product-launch'),
-        'manage_network_options',
-        'pl-api-keys',
-        'pl_render_api_keys_settings'
-    );
-});
 
 /**
  * Enhanced activation with proper database schema
@@ -225,13 +199,11 @@ function pl_activate($network_wide) {
         foreach ($sites as $blog_id) {
             switch_to_blog($blog_id);
             pl_create_tables();
-            pl_create_validation_tables();
             pl_create_projects_tables();
             restore_current_blog();
         }
     } else {
         pl_create_tables();
-        pl_create_validation_tables();
         pl_create_projects_tables();
     }
 }
@@ -260,93 +232,6 @@ function pl_create_tables() {
     
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     dbDelta($sql);
-}
-
-/**
- * Create validation tracking tables
- */
-function pl_create_validation_tables() {
-    global $wpdb;
-    $charset_collate = $wpdb->get_charset_collate();
-
-    $table_validations = $wpdb->prefix . 'pl_validations';
-    $sql_validations = "CREATE TABLE IF NOT EXISTS `$table_validations` (
-        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-        validation_id VARCHAR(32) UNIQUE NOT NULL,
-        user_id BIGINT UNSIGNED NOT NULL,
-        site_id BIGINT UNSIGNED NOT NULL DEFAULT 1,
-        business_idea TEXT NOT NULL,
-        external_api_id VARCHAR(255) NULL,
-        validation_score INT DEFAULT 0,
-        confidence_level VARCHAR(20) NULL,
-        confidence_score DECIMAL(5,2) DEFAULT 0,
-        market_demand_score INT DEFAULT 0,
-        competition_score INT DEFAULT 0,
-        monetization_score INT DEFAULT 0,
-        feasibility_score INT DEFAULT 0,
-        ai_analysis_score INT DEFAULT 0,
-        social_proof_score INT DEFAULT 0,
-        validation_status VARCHAR(50) DEFAULT 'completed',
-        enrichment_status VARCHAR(50) DEFAULT 'completed',
-        library_published TINYINT(1) NOT NULL DEFAULT 0,
-        published_at DATETIME NULL,
-        expires_at DATETIME NULL,
-        core_data LONGTEXT NULL,
-        signals_data LONGTEXT NULL,
-        recommendations_data LONGTEXT NULL,
-        phase_prefill_data LONGTEXT NULL,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        UNIQUE KEY validation_uid (validation_id),
-        KEY user_site (user_id, site_id),
-        KEY external_id (external_api_id),
-        KEY published (library_published, expires_at),
-        KEY score (validation_score, confidence_score)
-    ) $charset_collate;";
-
-    $table_enrichment = $wpdb->prefix . 'pl_validation_enrichment';
-    $sql_enrichment = "CREATE TABLE IF NOT EXISTS `$table_enrichment` (
-        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-        validation_id BIGINT UNSIGNED NOT NULL,
-        section_type VARCHAR(50) NOT NULL,
-        section_data LONGTEXT NULL,
-        fetched_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        KEY validation_section (validation_id, section_type),
-        KEY fetched (fetched_at)
-    ) $charset_collate;";
-
-    $table_signals = $wpdb->prefix . 'pl_validation_signals';
-    $sql_signals = "CREATE TABLE IF NOT EXISTS `$table_signals` (
-        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-        validation_id VARCHAR(32) NOT NULL,
-        signal_type VARCHAR(50) NOT NULL,
-        signal_data LONGTEXT NULL,
-        cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        expires_at DATETIME NULL,
-        PRIMARY KEY (id),
-        KEY validation_signal (validation_id, signal_type),
-        KEY expires (expires_at)
-    ) $charset_collate;";
-
-    $table_quota = $wpdb->prefix . 'pl_validation_quota';
-    $sql_quota = "CREATE TABLE IF NOT EXISTS `$table_quota` (
-        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-        user_id BIGINT UNSIGNED NOT NULL,
-        site_id BIGINT UNSIGNED NOT NULL DEFAULT 1,
-        month_year VARCHAR(7) NOT NULL,
-        validations_used INT DEFAULT 0,
-        validations_limit INT DEFAULT 3,
-        PRIMARY KEY (id),
-        UNIQUE KEY user_month (user_id, site_id, month_year)
-    ) $charset_collate;";
-
-    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-    dbDelta($sql_validations);
-    dbDelta($sql_enrichment);
-    dbDelta($sql_signals);
-    dbDelta($sql_quota);
 }
 
 /**
@@ -397,7 +282,7 @@ function pl_create_projects_tables() {
 }
 
 /**
- * Enhanced settings with better validation
+ * Enhanced settings defaults
  */
 
 if (!function_exists('pl_get_default_settings')) {
@@ -405,9 +290,6 @@ function pl_get_default_settings() {
     return [
         'openai_key' => '',
         'ai_model' => 'gpt-4o-mini',
-        'serp_api_key' => '',
-        'reddit_api_key' => '',
-        'producthunt_token' => '',
         'rate_limit_per_min' => 20,
         'timeout' => 30,
         'max_tokens' => 1000,
@@ -598,19 +480,6 @@ add_action('admin_enqueue_scripts', function($hook){
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce'    => wp_create_nonce(PL_NONCE_ACTION),
     ]);
-});
-
-add_action('admin_enqueue_scripts', function($hook) {
-    if (strpos($hook, 'product-launch') === false) {
-        return;
-    }
-
-    wp_enqueue_style(
-        'pl-validation-report-v3',
-        PL_PLUGIN_URL . 'assets/css/validation-report-v3.css',
-        [],
-        PL_PLUGIN_VERSION
-    );
 });
 
 /**
@@ -1681,38 +1550,6 @@ add_action('network_admin_menu', function () {
     }
 }, 5);
 
-add_action('network_admin_init', function () {
-    if (isset($_GET['page'])) {
-        return;
-    }
-
-    $request_uri = $_SERVER['REQUEST_URI'] ?? '';
-    if (empty($request_uri)) {
-        return;
-    }
-
-    $path = wp_parse_url($request_uri, PHP_URL_PATH);
-    if (!$path) {
-        return;
-    }
-
-    $target = trim(basename($path), '/');
-    if ('' === $target) {
-        return;
-    }
-
-    $legacy_slugs = [
-        'product-launch-network-validation',
-        'product-launch-network-validation-dashboard',
-        'product-launch-network-validation-list',
-        'product-launch-validation-settings',
-    ];
-
-    if (in_array($target, $legacy_slugs, true)) {
-        wp_safe_redirect(network_admin_url('admin.php?page=' . $target));
-        exit;
-    }
-});
 function plc_render_phase_router($phase_key) {
     $allowed = [
         'market-clarity','create-offer','create-service',
