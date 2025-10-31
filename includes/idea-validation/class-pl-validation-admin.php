@@ -14,7 +14,7 @@ class PL_Validation_Admin {
         if (is_multisite()) {
             // Ensure the Product Launch top-level network menu is registered before
             // we attempt to attach our validation subpages. A later priority prevents
-            // WordPress from generating fallback links like
+            // WordPress from generating direct file links like
             // wp-admin/network/<slug> (which results in a physical file request and a 404)
             // when the parent menu is not yet available.
             add_action('network_admin_menu', array($this, 'add_network_admin_menu'), 20);
@@ -746,6 +746,18 @@ class PL_Validation_Admin {
         $category_map = $library_state['category_map'];
         $categories_text = $library_state['categories_text'];
         $assignable_validations = $library_state['assignable_validations'];
+
+        $selected_validation = null;
+        $selected_validation_error = '';
+
+        if (!empty($_GET['validation_id'])) {
+            $access = new PL_Validation_Access();
+            $selected_validation = $access->get_validation(absint($_GET['validation_id']));
+
+            if (!$selected_validation) {
+                $selected_validation_error = __('Unable to load the requested validation report.', 'product-launch');
+            }
+        }
 
         include PL_PLUGIN_DIR . 'templates/admin/validation-list.php';
     }

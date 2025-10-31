@@ -189,6 +189,7 @@ define('PL_NETWORK_OPTION_NAME', 'pl_network_settings');
 define('PL_NONCE_ACTION', 'pl_nonce_action');
 
 // Validation system classes
+require_once PL_PLUGIN_DIR . 'includes/idea-validation/validation-migration-v3.php';
 require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-api.php';
 require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-quota.php';
 require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-access.php';
@@ -585,6 +586,19 @@ add_action('admin_enqueue_scripts', function($hook){
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce'    => wp_create_nonce(PL_NONCE_ACTION),
     ]);
+});
+
+add_action('admin_enqueue_scripts', function($hook) {
+    if (strpos($hook, 'product-launch') === false) {
+        return;
+    }
+
+    wp_enqueue_style(
+        'pl-validation-report-v3',
+        PL_PLUGIN_URL . 'assets/css/validation-report-v3.css',
+        [],
+        PL_PLUGIN_VERSION
+    );
 });
 
 /**

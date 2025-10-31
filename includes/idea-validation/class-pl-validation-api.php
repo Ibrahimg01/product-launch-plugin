@@ -3,7 +3,7 @@
  * Validation API handler (local multi-signal engine)
  *
  * The previous implementation proxied requests to the ExplodingStartup API and
- * provided demo fallbacks. Version 3 introduces an in-house multi-signal
+ * provided simulated responses. Version 3 introduces an in-house multi-signal
  * validation engine that aggregates market, competition, monetisation, and
  * social proof data while leveraging AI analysis. This class is now
  * responsible for orchestrating requests to {@see PL_Validation_Engine_V3},
@@ -15,20 +15,17 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-require_once __DIR__ . '/class-pl-validation-engine-v3.php';
+require_once PL_PLUGIN_DIR . 'includes/idea-validation/class-pl-validation-engine-v3.php';
 
 class PL_Validation_API {
     /** @var PL_Validation_Engine_V3 */
-    private $engine;
+    private $engine_v3;
 
     public function __construct() {
-        $this->engine = new PL_Validation_Engine_V3();
+        $this->engine_v3 = new PL_Validation_Engine_V3();
     }
 
-    /**
-     * Submit an idea for validation using the multi-signal engine.
-     */
-    public function submit_idea($business_idea, $user_id, $site_id, $context = []) {
+    public function submit_idea($business_idea, $user_id, $site_id) {
         $business_idea = trim((string) $business_idea);
 
         if ('' === $business_idea) {
@@ -39,13 +36,21 @@ class PL_Validation_API {
             return new WP_Error('pl_validation_auth_required', __('You must be logged in to validate ideas.', 'product-launch'));
         }
 
-        $report = $this->engine->validate_idea($business_idea, $context);
+        // Use V3 engine for validation
+        $validation_result = $this->engine_v3->validate_idea($business_idea, [
+            'user_id' => $user_id,
+            'site_id' => $site_id,
+        ]);
 
-        if (empty($report)) {
-            return new WP_Error('pl_validation_failed', __('Unable to generate validation insights. Please try again.', 'product-launch'));
+        if (!$validation_result) {
+            return new WP_Error(
+                'pl_validation_failed',
+                __('Validation engine encountered an error. Please try again.', 'product-launch')
+            );
         }
 
-        $local_id = $this->save_validation($user_id, $site_id, $business_idea, $report);
+        // Save to database with enhanced schema
+        $local_id = $this->save_validation_v3($user_id, $site_id, $validation_result);
 
         if (is_wp_error($local_id)) {
             return $local_id;
@@ -53,9 +58,49 @@ class PL_Validation_API {
 
         return [
             'local_id' => $local_id,
-            'external_id' => $report['id'],
-            'data' => $report,
+            'validation_id' => $validation_result['id'],
+            'data' => $validation_result,
         ];
+    }
+
+    private function save_validation_v3($user_id, $site_id, $validation_data) {
+        $this->maybe_create_validation_tables();
+
+        global $wpdb;
+        $table = pl_get_validation_table_name(is_multisite() ? 'network' : 'site');
+
+        $inserted = $wpdb->insert($table, [
+            'validation_id' => $validation_data['id'],
+            'user_id' => $user_id,
+            'site_id' => $site_id,
+            'business_idea' => $validation_data['business_idea'],
+            'validation_score' => $validation_data['validation_score'],
+            'confidence_level' => $validation_data['confidence_level'],
+            'confidence_score' => $validation_data['score_breakdown']['confidence_score'] ?? 0,
+            'market_demand_score' => $validation_data['score_breakdown']['market_demand'] ?? 0,
+            'competition_score' => $validation_data['score_breakdown']['competition'] ?? 0,
+            'monetization_score' => $validation_data['score_breakdown']['monetization'] ?? 0,
+            'feasibility_score' => $validation_data['score_breakdown']['feasibility'] ?? 0,
+            'ai_analysis_score' => $validation_data['score_breakdown']['ai_analysis'] ?? 0,
+            'social_proof_score' => $validation_data['score_breakdown']['social_proof'] ?? 0,
+            'validation_status' => 'completed',
+            'signals_data' => wp_json_encode($validation_data['signals']),
+            'recommendations_data' => wp_json_encode($validation_data['recommendations']),
+            'phase_prefill_data' => wp_json_encode($validation_data['phase_prefill']),
+            'expires_at' => $validation_data['expires_at'],
+            'created_at' => current_time('mysql'),
+        ]);
+
+        if (false === $inserted) {
+            error_log('PL V3 Validation Save Failed: ' . $wpdb->last_error);
+            return new WP_Error('save_failed', __('Failed to save validation.', 'product-launch'));
+        }
+
+        if (!empty($validation_data['signals'])) {
+            $this->cache_signals($validation_data['id'], $validation_data['signals']);
+        }
+
+        return (int) $wpdb->insert_id;
     }
 
     /**
@@ -107,7 +152,7 @@ class PL_Validation_API {
                 'count' => count($ideas),
                 'query' => $query,
                 'limit' => $args['limit'],
-                'is_demo' => false,
+                'is_sample' => false,
             ],
         ];
     }

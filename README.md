@@ -93,6 +93,37 @@ Includes modular JS classes for selective content overrides and modal previews.
 
 Follows WP coding standards and supports multisite environments.
 
+## Multi-Signal Validation Engine V3
+
+### Overview
+Our validation system analyzes business ideas through 6 independent signals:
+
+1. **Market Demand** (25%) - Google Trends + keyword volume
+2. **Competition Analysis** (20%) - ProductHunt + GitHub saturation
+3. **Monetization Potential** (15%) - Price tolerance analysis
+4. **Feasibility Assessment** (10%) - Technical complexity
+5. **AI Strategic Analysis** (20%) - GPT-4 powered insights
+6. **Social Proof** (10%) - Reddit sentiment mining
+
+### Advantages Over Single-Source Validation
+
+- **Data Triangulation**: Multiple sources provide consensus validation
+- **Confidence Scoring**: Measure agreement between signals
+- **Future-Proof**: No dependency on single API provider
+- **Actionable Intel**: Specific recommendations per signal
+- **Phase-Ready**: Auto-populated data for 8-phase launch system
+
+### API Requirements
+
+Required API keys (configure in Network Settings):
+- OpenAI API key (for AI analysis)
+- SerpAPI or DataForSEO key (for keyword data)
+- Reddit API credentials (for social proof)
+
+### Migration from V2
+
+V3 migration runs automatically on plugin update. Existing validations are preserved with new columns added.
+
 🧰 Future Enhancements
 
 ✅ Deep integration with Tutor LMS for course launches.

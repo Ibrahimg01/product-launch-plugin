@@ -50,7 +50,7 @@ class PL_Validation_Quota {
             $user_id, $site_id, $month_year
         ));
 
-        // Default limit fallback respects network/site setting
+        // Default limit logic respects network/site setting
         $default_limit = (int) pl_get_validation_option('pl_validation_default_limit', 3);
 
         return $limit !== null ? (int) $limit : max(1, $default_limit);

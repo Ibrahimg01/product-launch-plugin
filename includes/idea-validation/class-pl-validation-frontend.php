@@ -31,6 +31,13 @@ class PL_Validation_Frontend {
                 PL_VERSION
             );
 
+            wp_enqueue_style(
+                'pl-validation-report-v3',
+                PL_PLUGIN_URL . 'assets/css/validation-report-v3.css',
+                array('pl-validation-frontend'),
+                PL_VERSION
+            );
+
             wp_enqueue_script(
                 'pl-validation-frontend',
                 PL_PLUGIN_URL . 'assets/js/validation-frontend.js',
